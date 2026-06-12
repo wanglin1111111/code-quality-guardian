@@ -333,7 +333,7 @@ class SecurityScanner:
         },
         {
             "severity": "MEDIUM", "category": "config",
-            "pattern": r"ALLOWED_HOSTS\s*=\s*\[\s*['\"]\*['\"]",
+            "pattern": r"ALLOWED_HOSTS\s*=\s*\[\s*['\"]\*['\"]\]",
             "title": "Host 校验被禁用",
             "description": "ALLOWED_HOSTS=['*'] 可能导致 Host 头攻击",
             "fix": "指定具体的允许域名列表",
@@ -348,10 +348,25 @@ class SecurityScanner:
             "cwe": "CWE-327",
         },
     ]
+    
+    @classmethod
+    def _compile_rules(cls, rules: list) -> list:
+        """为规则列表预编译正则表达式"""
+        compiled = []
+        for rule in rules:
+            compiled_rule = dict(rule)
+            compiled_rule["_compiled"] = re.compile(rule["pattern"], re.IGNORECASE)
+            compiled.append(compiled_rule)
+        return compiled
 
     def __init__(self, language: str = "python"):
         self.language = language
         self.issues: List[SecurityIssue] = []
+        # 预编译所有规则的正则表达式
+        self._compiled_rules = (
+            self._compile_rules(self.OWASP_RULES)
+            + self._compile_rules(self.CWE_RULES)
+        )
 
     def scan(self, code: str, file_path: str = "input") -> SecurityReport:
         """执行安全扫描"""
@@ -359,7 +374,7 @@ class SecurityScanner:
         lines = code.split("\n")
 
         # 应用所有规则
-        for rule in self.OWASP_RULES + self.CWE_RULES:
+        for rule in self._compiled_rules:
             self._apply_rule(rule, lines)
 
         # 计算风险评分
@@ -380,7 +395,7 @@ class SecurityScanner:
             stripped = line.strip()
             if stripped.startswith("#") or stripped.startswith("//"):
                 continue
-            if re.search(rule["pattern"], stripped, re.IGNORECASE):
+            if rule["_compiled"].search(stripped):
                 # 去重：同一行同一类别只保留最高严重性
                 existing = [iss for iss in self.issues if iss.line == i and iss.category == rule["category"]]
                 if existing and self._severity_rank(existing[0].severity) >= self._severity_rank(rule["severity"]):
@@ -434,21 +449,30 @@ class SecurityScanner:
 
 def main():
     import sys
+    import argparse
 
-    if len(sys.argv) < 2:
-        print("用法: python security_scanner.py <code_file> [language]")
+    parser = argparse.ArgumentParser(description="安全漏洞扫描器 — OWASP Top 10 + CWE Top 25")
+    parser.add_argument("code_file", help="待扫描的源代码文件路径")
+    parser.add_argument("language", nargs="?", default="python",
+                        help="编程语言 (默认: python)")
+    parser.add_argument("--json", action="store_true", dest="output_json",
+                        help="以 JSON 格式输出")
+    args = parser.parse_args()
+
+    try:
+        with open(args.code_file, "r", encoding="utf-8") as f:
+            code = f.read()
+    except FileNotFoundError:
+        print(f"错误: 文件 '{args.code_file}' 不存在")
+        sys.exit(1)
+    except PermissionError:
+        print(f"错误: 无权读取文件 '{args.code_file}'")
         sys.exit(1)
 
-    file_path = sys.argv[1]
-    language = sys.argv[2] if len(sys.argv) > 2 else "python"
+    scanner = SecurityScanner(args.language)
+    report = scanner.scan(code, args.code_file)
 
-    with open(file_path, "r", encoding="utf-8") as f:
-        code = f.read()
-
-    scanner = SecurityScanner(language)
-    report = scanner.scan(code, file_path)
-
-    if len(sys.argv) > 3 and sys.argv[3] == "--json":
+    if args.output_json:
         print(report.to_json())
     else:
         print(report.to_markdown())

@@ -1042,46 +1042,69 @@ class APIDocGenerator:
 
 def main():
     import sys
+    import argparse
 
-    if len(sys.argv) < 3:
-        print("用法:")
-        print("  生成代码: python code_generator.py generate <description> <language> [framework]")
-        print("  补全代码: python code_generator.py complete <code> <language>")
-        print("  生成注释: python code_generator.py comment <code> <language>")
-        print("  生成文档: python code_generator.py doc <code_file> <language> [--format openapi]")
+    parser = argparse.ArgumentParser(description="代码生成与补全引擎")
+    subparsers = parser.add_subparsers(dest="action", help="子命令")
+
+    # generate 子命令
+    gen_parser = subparsers.add_parser("generate", help="根据描述生成代码")
+    gen_parser.add_argument("description", help="功能描述")
+    gen_parser.add_argument("language", nargs="?", default="python", help="编程语言")
+    gen_parser.add_argument("framework", nargs="?", default="", help="框架名称")
+
+    # complete 子命令
+    comp_parser = subparsers.add_parser("complete", help="补全函数代码")
+    comp_parser.add_argument("code", help="不完整的代码")
+    comp_parser.add_argument("language", help="编程语言")
+
+    # comment 子命令
+    comment_parser = subparsers.add_parser("comment", help="自动生成注释")
+    comment_parser.add_argument("code", help="源代码")
+    comment_parser.add_argument("language", help="编程语言")
+
+    # doc 子命令
+    doc_parser = subparsers.add_parser("doc", help="生成 API 文档")
+    doc_parser.add_argument("code_file", help="源代码文件路径")
+    doc_parser.add_argument("language", help="编程语言")
+    doc_parser.add_argument("--format", default="markdown",
+                            choices=["markdown", "openapi"],
+                            help="文档格式 (默认: markdown)")
+
+    args = parser.parse_args()
+
+    if not args.action:
+        parser.print_help()
         sys.exit(1)
 
-    action = sys.argv[1]
     gen = CodeGenerator()
     doc_gen = APIDocGenerator()
 
-    if action == "generate":
-        desc = sys.argv[2]
-        lang = sys.argv[3] if len(sys.argv) > 3 else "python"
-        fw = sys.argv[4] if len(sys.argv) > 4 else ""
-        result = gen.generate_from_description(desc, lang, fw)
+    if args.action == "generate":
+        result = gen.generate_from_description(args.description, args.language, args.framework)
         print(result.code)
         print(f"\n# 依赖: {', '.join(result.dependencies) if result.dependencies else '无'}")
         print(f"# 说明: {result.explanation}")
 
-    elif action == "complete":
-        code = sys.argv[2]
-        lang = sys.argv[3]
-        result = gen.complete_function(code, lang)
+    elif args.action == "complete":
+        result = gen.complete_function(args.code, args.language)
         print(result.full_code)
 
-    elif action == "comment":
-        code = sys.argv[2]
-        lang = sys.argv[3]
-        result = gen.generate_comments(code, lang)
+    elif args.action == "comment":
+        result = gen.generate_comments(args.code, args.language)
         print(result)
 
-    elif action == "doc":
-        with open(sys.argv[2], "r", encoding="utf-8") as f:
-            source = f.read()
-        lang = sys.argv[3]
-        fmt = "openapi" if "--format" in sys.argv else "markdown"
-        result = doc_gen.generate(source, lang, fmt)
+    elif args.action == "doc":
+        try:
+            with open(args.code_file, "r", encoding="utf-8") as f:
+                source = f.read()
+        except FileNotFoundError:
+            print(f"错误: 文件 '{args.code_file}' 不存在")
+            sys.exit(1)
+        except PermissionError:
+            print(f"错误: 无权读取文件 '{args.code_file}'")
+            sys.exit(1)
+        result = doc_gen.generate(source, args.language, args.format)
         print(result.documentation)
 
 

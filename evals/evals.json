@@ -1,0 +1,261 @@
+{
+  "skill_name": "code-quality-guardian",
+  "version": "1.0.0",
+  "description": "代码质量守护者 Skill 评测样本集 — 覆盖核心任务、边界输入、已知陷阱三类场景",
+  "evals": [
+    {
+      "id": "core-01",
+      "category": "核心样本",
+      "capability": "代码审查",
+      "prompt": "审查这段 Python 代码的安全性和性能：\n```python\nimport subprocess\n\ndef run_command(user_input):\n    subprocess.run(user_input, shell=True)\n    query = f\"SELECT * FROM users WHERE id = {user_input}\"\n    cursor.execute(query)\n```",
+      "expected_output": "结构化审查报告，包含严重性分级的问题列表、修复建议和维度评分",
+      "assertions": [
+        { "id": "a1", "text": "检测到 shell=True 命令注入风险，标记为 HIGH 或 CRITICAL" },
+        { "id": "a2", "text": "检测到 f-string SQL 拼接注入风险" },
+        { "id": "a3", "text": "检测到 SELECT * 性能问题" },
+        { "id": "a4", "text": "每条问题附带具体修复代码示例（如参数化查询）" },
+        { "id": "a5", "text": "输出包含维度评分（security / performance / maintainability 等）" },
+        { "id": "a6", "text": "没有自动修改文件或执行代码" }
+      ]
+    },
+    {
+      "id": "core-02",
+      "category": "核心样本",
+      "capability": "安全漏洞扫描",
+      "prompt": "扫描这段代码的安全漏洞：\n```python\npassword = \"admin123456\"\napi_key = \"sk-live-abcdef123456\"\nresult = eval(user_data)\ntoken = random.randint(0, 999999)\nrequests.get(url, verify=False)\n```",
+      "expected_output": "安全扫描报告，覆盖 OWASP Top 10 和 CWE 映射，风险评分 0-10",
+      "assertions": [
+        { "id": "b1", "text": "检测到硬编码密码和 API Key（CRITICAL），映射到 CWE-798" },
+        { "id": "b2", "text": "检测到 eval() 代码注入风险，映射到 CWE-95" },
+        { "id": "b3", "text": "检测到 random 模块不安全，建议使用 secrets 模块" },
+        { "id": "b4", "text": "检测到 SSL 验证被禁用" },
+        { "id": "b5", "text": "风险评分 ≥ 7（高风险），因为有多个 CRITICAL 漏洞" },
+        { "id": "b6", "text": "输出包含 OWASP 分类标签（如 A02:2021, A03:2021）" }
+      ]
+    },
+    {
+      "id": "core-03",
+      "category": "核心样本",
+      "capability": "测试用例生成",
+      "prompt": "为这个函数生成 pytest 测试用例：\n```python\ndef calculate_discount(price: float, discount_percent: int) -> float:\n    if discount_percent < 0 or discount_percent > 100:\n        raise ValueError(\"折扣百分比必须在 0-100 之间\")\n    return price * (1 - discount_percent / 100)\n```",
+      "expected_output": "完整的 pytest 测试文件，覆盖正常值、边界值、异常场景",
+      "assertions": [
+        { "id": "c1", "text": "生成至少 3 类测试：正常场景、边界值（0%/100%）、异常（负数/超100）" },
+        { "id": "c2", "text": "使用 pytest.raises 验证 ValueError 异常场景" },
+        { "id": "c3", "text": "测试代码可直接运行（import 正确、函数名匹配）" },
+        { "id": "c4", "text": "包含边界值测试：discount_percent=0 和 discount_percent=100" },
+        { "id": "c5", "text": "遵循 AAA 模式（Arrange-Act-Assert）或 pytest 惯用写法" }
+      ]
+    },
+    {
+      "id": "core-04",
+      "category": "核心样本",
+      "capability": "SQL 查询优化",
+      "prompt": "优化这个 SQL 查询：\n```sql\nSELECT * FROM orders o\nWHERE o.created_at IN (\n    SELECT MAX(created_at) FROM orders GROUP BY user_id\n)\nAND o.status != 'cancelled'\nORDER BY o.created_at\n```",
+      "expected_output": "优化报告，包含问题识别、索引建议、重写后的 SQL",
+      "assertions": [
+        { "id": "d1", "text": "指出 SELECT * 应替换为具体字段" },
+        { "id": "d2", "text": "识别子查询效率问题，建议改为 JOIN" },
+        { "id": "d3", "text": "识别 ORDER BY 无 LIMIT 问题" },
+        { "id": "d4", "text": "提供具体的索引建议（如在 user_id, created_at 上建索引）" },
+        { "id": "d5", "text": "输出优化后的 SQL 版本" },
+        { "id": "d6", "text": "每条建议都有非空的 suggestion 说明" }
+      ]
+    },
+    {
+      "id": "core-05",
+      "category": "核心样本",
+      "capability": "日志分析",
+      "prompt": "分析这些日志中的异常：\n```\n2024-03-15 10:00:01 INFO  User login success user_id=1001\n2024-03-15 10:00:15 ERROR ConnectionTimeout: database connection timed out after 30s\n2024-03-15 10:00:16 ERROR ConnectionTimeout: database connection timed out after 30s\n2024-03-15 10:00:17 WARN  Retry attempt 1/3 for db query\n2024-03-15 10:00:20 ERROR OutOfMemoryError: Java heap space\n2024-03-15 10:00:21 FATAL Service crash: OOM killer triggered\n2024-03-15 10:00:22 ERROR ConnectionTimeout: database connection timed out after 30s\n```",
+      "expected_output": "日志分析报告，包含异常模式检测、根因分析、告警规则建议",
+      "assertions": [
+        { "id": "e1", "text": "识别出连接超时（ConnectionTimeout）为高频异常模式" },
+        { "id": "e2", "text": "识别出 OOM（内存溢出）为 CRITICAL 级别" },
+        { "id": "e3", "text": "根因分析包含'网络连接不稳定'或'下游服务过载'判断" },
+        { "id": "e4", "text": "生成至少 1 条告警规则建议" },
+        { "id": "e5", "text": "正确提取时间范围（10:00:01 ~ 10:00:22）" }
+      ]
+    },
+    {
+      "id": "core-06",
+      "category": "核心样本",
+      "capability": "复杂度分析",
+      "prompt": "分析这段代码的复杂度：\n```python\ndef process_order(order, inventory, payment_gateway, notifier):\n    if order.status == 'pending':\n        if order.total > 1000:\n            if payment_gateway.verify(order.payment):\n                for item in order.items:\n                    if inventory.check(item.sku):\n                        if item.quantity <= inventory.stock(item.sku):\n                            inventory.deduct(item.sku, item.quantity)\n                        else:\n                            notifier.send('out_of_stock', item)\n                    else:\n                        notifier.send('sku_not_found', item)\n            else:\n                return {'error': 'payment_failed'}\n        else:\n            for item in order.items:\n                inventory.deduct(item.sku, item.quantity)\n        order.status = 'confirmed'\n    return order\n```",
+      "expected_output": "复杂度分析报告，含圈复杂度数值、风险等级、热点函数识别",
+      "assertions": [
+        { "id": "f1", "text": "process_order 的圈复杂度 > 10（大量 if/for 嵌套）" },
+        { "id": "f2", "text": "风险等级标记为'高'或'中'" },
+        { "id": "f3", "text": "process_order 出现在热点函数列表中" },
+        { "id": "f4", "text": "输出包含复杂度标准参考表（1-5 低 / 6-10 中 / 11-20 高）" },
+        { "id": "f5", "text": "to_json() 方法正常工作，不抛出 AttributeError" }
+      ]
+    },
+    {
+      "id": "core-07",
+      "category": "核心样本",
+      "capability": "代码生成",
+      "prompt": "生成一个 FastAPI 的用户注册 API",
+      "expected_output": "完整的 FastAPI 应用骨架代码，含模型定义、路由、错误处理",
+      "assertions": [
+        { "id": "g1", "text": "生成的代码使用 FastAPI 框架（含 FastAPI import）" },
+        { "id": "g2", "text": "包含 Pydantic 请求/响应模型（BaseModel）" },
+        { "id": "g3", "text": "包含至少一个 POST 端点用于创建资源" },
+        { "id": "g4", "text": "包含输入验证（如 name 不能为空）" },
+        { "id": "g5", "text": "列出依赖包（fastapi, pydantic 等）" }
+      ]
+    },
+    {
+      "id": "core-08",
+      "category": "核心样本",
+      "capability": "API 文档生成",
+      "prompt": "生成这个 API 的文档：\n```python\nfrom fastapi import FastAPI\napp = FastAPI()\n\n@app.get(\"/users\")\nasync def list_users():\n    \"\"\"获取所有用户列表\"\"\"\n    pass\n\n@app.post(\"/users\")\nasync def create_user(name: str, email: str):\n    \"\"\"创建新用户\"\"\"\n    pass\n\n@app.get(\"/users/{user_id}\")\nasync def get_user(user_id: int):\n    \"\"\"获取单个用户详情\"\"\"\n    pass\n```",
+      "expected_output": "结构化 API 文档（Markdown 或 OpenAPI 格式），包含所有端点信息",
+      "assertions": [
+        { "id": "h1", "text": "文档包含全部 3 个端点（GET /users, POST /users, GET /users/{user_id}）" },
+        { "id": "h2", "text": "每个端点标注 HTTP 方法和路径" },
+        { "id": "h3", "text": "保留或提取了 docstring 作为端点描述" },
+        { "id": "h4", "text": "如输出 OpenAPI 格式，符合 3.0 规范" }
+      ]
+    },
+
+    {
+      "id": "edge-01",
+      "category": "边界样本",
+      "capability": "代码审查",
+      "scenario": "空输入 / 无实际代码",
+      "prompt": "审查这段代码的安全性：\n```python\n```",
+      "expected_output": "空代码的审查结果，评分为满分或明确提示'无代码可审查'",
+      "assertions": [
+        { "id": "i1", "text": "不因空输入抛出异常或崩溃" },
+        { "id": "i2", "text": "返回评分为 10.0（满分）或友好提示'未检测到代码'" },
+        { "id": "i3", "text": "issues 列表为空" }
+      ]
+    },
+    {
+      "id": "edge-02",
+      "category": "边界样本",
+      "capability": "测试用例生成",
+      "scenario": "函数签名缺少类型提示",
+      "prompt": "为这个函数生成测试用例：\n```python\ndef process(data, config, verbose=False):\n    pass\n```",
+      "expected_output": "基于参数名推断合理测试值的测试代码",
+      "assertions": [
+        { "id": "j1", "text": "不因缺少类型提示崩溃" },
+        { "id": "j2", "text": "正确解析出 3 个参数（data, config, verbose），排除 self" },
+        { "id": "j3", "text": "生成的测试代码语法正确（无 SyntaxError）" },
+        { "id": "j4", "text": "为无类型参数生成通用测试值（字符串或数字）" }
+      ]
+    },
+    {
+      "id": "edge-03",
+      "category": "边界样本",
+      "capability": "SQL 优化",
+      "scenario": "格式混乱的 SQL（大小写不一致、无缩进、注释干扰）",
+      "prompt": "优化这个 SQL：\n```sql\nselect * from Users WHERE\n-- 这是一个查询\nname LIKE '%test%' OR email like '%test%'\norder by id\n```",
+      "expected_output": "能正确识别问题并给出优化建议",
+      "assertions": [
+        { "id": "k1", "text": "识别出 SELECT *（大小写不敏感匹配）" },
+        { "id": "k2", "text": "识别出 LIKE '%test%' 前导通配符问题" },
+        { "id": "k3", "text": "识别出 OR 条件可能影响索引" },
+        { "id": "k4", "text": "识别出 ORDER BY 无 LIMIT" },
+        { "id": "k5", "text": "不被 SQL 注释干扰（不误报注释行）" }
+      ]
+    },
+    {
+      "id": "edge-04",
+      "category": "边界样本",
+      "capability": "日志分析",
+      "scenario": "无时间戳、无级别标识的纯文本日志",
+      "prompt": "分析这些日志：\n```\n用户登录成功\n数据库连接失败\n重试中\n服务恢复正常\n磁盘空间不足告警\n```",
+      "expected_output": "能识别格式问题并尽量提取异常模式",
+      "assertions": [
+        { "id": "l1", "text": "不因缺少时间戳崩溃" },
+        { "id": "l2", "text": "format_issues 中包含'缺少时间戳'相关提示" },
+        { "id": "l3", "text": "仍能识别出'磁盘空间不足'等关键词异常" }
+      ]
+    },
+    {
+      "id": "edge-05",
+      "category": "边界样本",
+      "capability": "代码生成",
+      "scenario": "模糊且不完整的需求描述",
+      "prompt": "帮我写个东西，处理一下数据",
+      "expected_output": "生成基础通用骨架代码，并提示用户提供更多信息",
+      "assertions": [
+        { "id": "m1", "text": "不因需求模糊而崩溃" },
+        { "id": "m2", "text": "生成某种可用的代码骨架（即使是 TODO 占位）" },
+        { "id": "m3", "text": "explanation 中包含'请提供更详细的需求'类似引导" }
+      ]
+    },
+
+    {
+      "id": "pitfall-01",
+      "category": "已知坑",
+      "capability": "代码审查",
+      "scenario": "合法使用 print() 的 CLI 脚本被误报为调试代码",
+      "prompt": "审查这段 CLI 工具代码：\n```python\nimport argparse\n\ndef main():\n    parser = argparse.ArgumentParser()\n    parser.add_argument('file')\n    args = parser.parse_args()\n    print(f'Processing: {args.file}')\n\nif __name__ == '__main__':\n    main()\n```",
+      "expected_output": "审查报告，对 print() 的标注应区分 CLI 输出和调试用途",
+      "assertions": [
+        { "id": "n1", "text": "print() 如果被标注为 LOW/INFO 级别是合理的" },
+        { "id": "n2", "text": "不应将 CLI 的 print 输出误标为 HIGH 严重性问题" },
+        { "id": "n3", "text": "不应将 argparse 参数解析误报为安全问题" },
+        { "id": "n4", "text": "总体评分不应因 CLI 正常使用 print 而低于 7 分" }
+      ]
+    },
+    {
+      "id": "pitfall-02",
+      "category": "已知坑",
+      "capability": "复杂度分析",
+      "scenario": "字符串和注释中的关键字被误计为分支",
+      "prompt": "分析这段代码的复杂度：\n```python\ndef format_message(msg_type):\n    if msg_type == 'if':\n        return 'This is an if statement'\n    elif msg_type == 'for':\n        return 'This is a for loop'\n    # while and for are common loop keywords\n    return f'Unknown type: {msg_type}'\n```",
+      "expected_output": "合理的圈复杂度值，不应因字符串/注释中的关键字而虚高",
+      "assertions": [
+        { "id": "o1", "text": "圈复杂度应基于实际 if/elif 分支计算（约 3-4）" },
+        { "id": "o2", "text": "不应因字符串中的 'if'、'for'、'while' 而大幅虚高（不应 > 8）" },
+        { "id": "o3", "text": "不应因注释中的 'while and for' 而额外加分" },
+        { "id": "o4", "text": "函数被正确识别，line_start 和 line_end 范围合理" }
+      ]
+    },
+    {
+      "id": "pitfall-03",
+      "category": "已知坑",
+      "capability": "安全扫描",
+      "scenario": "同一行被多条规则重复报告",
+      "prompt": "扫描这段代码：\n```python\nresult = eval(exec('print(\"hello\")'))\npassword = 'secret12345678'\n```",
+      "expected_output": "去重后的安全报告，同一行同一类别不重复报告",
+      "assertions": [
+        { "id": "p1", "text": "eval 和 exec 在同一行时应分别报告（不同漏洞类型）" },
+        { "id": "p2", "text": "同一行同一 category 只保留最高严重性（不重复）" },
+        { "id": "p3", "text": "硬编码密码被正确检测为 CRITICAL" },
+        { "id": "p4", "text": "风险评分不超过 10（归一化正确）" }
+      ]
+    },
+    {
+      "id": "pitfall-04",
+      "category": "已知坑",
+      "capability": "测试用例生成",
+      "scenario": "Jest 框架生成时花括号转义错误",
+      "prompt": "为这个函数生成 Jest 测试用例：\n```javascript\nfunction processData(data, options) {\n    return { status: 'ok', result: data };\n}\n```",
+      "expected_output": "语法正确的 Jest 测试代码，花括号无转义错误",
+      "assertions": [
+        { "id": "q1", "text": "生成的 Jest 代码中花括号 {} 无 {{ 转义残留" },
+        { "id": "q2", "text": "包含 describe 和 test/it 块" },
+        { "id": "q3", "text": "expect 断言语法正确（使用 toBeDefined 或类似）" },
+        { "id": "q4", "text": "生成的代码无 Python f-string 模板语法残留" }
+      ]
+    },
+    {
+      "id": "pitfall-05",
+      "category": "已知坑",
+      "capability": "代码审查",
+      "scenario": "代码审查中注释行被误报",
+      "prompt": "审查这段代码：\n```python\n# eval(user_input)  # 这行已被注释掉，不要执行\n# password = \"old_secret\"  # 旧密码，已迁移到环境变量\nx = 1 + 2  # 正常计算\n```",
+      "expected_output": "正确忽略注释行的审查报告",
+      "assertions": [
+        { "id": "r1", "text": "注释中的 eval() 不被报告为安全漏洞" },
+        { "id": "r2", "text": "注释中的硬编码密码不被报告" },
+        { "id": "r3", "text": "issues 列表应为空或仅包含极少量 INFO 级问题" },
+        { "id": "r4", "text": "总体评分应为高分（≥ 8）" }
+      ]
+    }
+  ]
+}

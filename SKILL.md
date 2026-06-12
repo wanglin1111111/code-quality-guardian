@@ -326,7 +326,7 @@ SQL 查询分析和优化建议引擎。
 ### scripts/security_scanner.py
 安全漏洞扫描器，覆盖 OWASP Top 10 和 CWE Top 25。
 
-### scripts/cplexity_analyzer.py
+### scripts/complexity_analyzer.py
 代码复杂度分析工具，计算圈复杂度和认知复杂度。
 
 ### scripts/code_generator.py

@@ -74,6 +74,21 @@ class ComplexityReport:
 
         return "\n".join(lines)
 
+    def to_json(self) -> str:
+        return json.dumps(
+            {
+                "file": self.file,
+                "language": self.language,
+                "timestamp": self.timestamp,
+                "results": [r.to_dict() for r in self.results],
+                "avg_cyclomatic": self.avg_cyclomatic,
+                "avg_cognitive": self.avg_cognitive,
+                "hotspot_functions": self.hotspot_functions,
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
+
 
 class ComplexityAnalyzer:
     """代码复杂度分析工具"""
@@ -237,21 +252,30 @@ class ComplexityAnalyzer:
 
 def main():
     import sys
+    import argparse
 
-    if len(sys.argv) < 2:
-        print("用法: python complexity_analyzer.py <code_file> [language]")
+    parser = argparse.ArgumentParser(description="代码复杂度分析工具")
+    parser.add_argument("code_file", help="待分析的源代码文件路径")
+    parser.add_argument("language", nargs="?", default="python",
+                        help="编程语言 (默认: python)")
+    parser.add_argument("--json", action="store_true", dest="output_json",
+                        help="以 JSON 格式输出")
+    args = parser.parse_args()
+
+    try:
+        with open(args.code_file, "r", encoding="utf-8") as f:
+            code = f.read()
+    except FileNotFoundError:
+        print(f"错误: 文件 '{args.code_file}' 不存在")
+        sys.exit(1)
+    except PermissionError:
+        print(f"错误: 无权读取文件 '{args.code_file}'")
         sys.exit(1)
 
-    file_path = sys.argv[1]
-    language = sys.argv[2] if len(sys.argv) > 2 else "python"
+    analyzer = ComplexityAnalyzer(args.language)
+    report = analyzer.analyze(code, args.code_file)
 
-    with open(file_path, "r", encoding="utf-8") as f:
-        code = f.read()
-
-    analyzer = ComplexityAnalyzer(language)
-    report = analyzer.analyze(code, file_path)
-
-    if "--json" in sys.argv:
+    if args.output_json:
         print(report.to_json())
     else:
         print(report.to_markdown())

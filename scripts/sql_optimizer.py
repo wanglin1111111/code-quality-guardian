@@ -101,6 +101,7 @@ class SQLOptimizer:
             "pattern": r"SELECT\s+\*\s+FROM",
             "title": "使用 SELECT *",
             "description": "SELECT * 会查询所有列，增加 I/O 和网络开销，且可能导致无法使用覆盖索引",
+            "suggestion": "将 SELECT * 替换为明确指定所需字段名，减少不必要的数据传输",
             "category": "performance",
         },
         {
@@ -109,6 +110,7 @@ class SQLOptimizer:
             "pattern": r"FROM\s+\w+(?:\s+\w+)?(?:\s*,\s*\w+){2,}",
             "title": "可能存在笛卡尔积",
             "description": "多个表之间缺少 JOIN 条件，可能导致笛卡尔积，数据量爆炸",
+            "suggestion": "为每个表之间添加明确的 JOIN 条件，避免隐式笛卡尔积",
             "category": "correctness",
         },
         {
@@ -117,6 +119,7 @@ class SQLOptimizer:
             "pattern": r"^(?!.*WHERE)(?!.*HAVING)(?!.*LIMIT)(?!.*JOIN)(?!.*WHERE).*SELECT.*FROM",
             "title": "全表扫描",
             "description": "查询缺少 WHERE 条件，可能导致全表扫描",
+            "suggestion": "添加 WHERE 条件过滤数据，或添加 LIMIT 限制返回行数",
             "category": "performance",
         },
         {
@@ -125,6 +128,7 @@ class SQLOptimizer:
             "pattern": r"LIKE\s+['\"](?:%[^%]*|_)|(?:%[^%]*)",
             "title": "前导通配符查询",
             "description": "LIKE '%xxx' 无法使用 B-tree 索引，导致全表扫描",
+            "suggestion": "考虑使用全文索引 (FULLTEXT) 或反向索引，避免前缀通配符",
             "category": "performance",
         },
         {
@@ -133,6 +137,7 @@ class SQLOptimizer:
             "pattern": r"WHERE\s+\w+\s*=\s*[^C]+\s+OR\s+\w+\s*=",
             "title": "OR 条件可能影响索引使用",
             "description": "WHERE 子句中使用多个 OR 条件可能导致索引失效",
+            "suggestion": "将 OR 条件改为 IN 列表，或使用 UNION ALL 拆分多个查询",
             "category": "performance",
         },
         {
@@ -141,6 +146,7 @@ class SQLOptimizer:
             "pattern": r"WHERE\s+\w+\s*\([^)]*\w+[^)]*\)",
             "title": "在索引列上使用函数",
             "description": "在 WHERE 条件中对索引列使用函数会导致索引失效",
+            "suggestion": "避免在索引列上使用函数，可预先计算并存储结果",
             "category": "performance",
         },
         {
@@ -149,6 +155,7 @@ class SQLOptimizer:
             "pattern": r"NOT\s+IN\s*\(",
             "title": "使用 NOT IN",
             "description": "NOT IN 对 NULL 值行为不确定，且通常无法使用索引",
+            "suggestion": "将 NOT IN 改为 NOT EXISTS 或 LEFT JOIN ... WHERE ... IS NULL",
             "category": "performance",
         },
         {
@@ -157,6 +164,7 @@ class SQLOptimizer:
             "pattern": r"WHERE\s+\w+\s+(?:IN|NOT IN|EXISTS|NOT EXISTS)\s*\(\s*SELECT",
             "title": "子查询可能效率低下",
             "description": "WHERE 子句中的子查询可能被多次执行，建议改为 JOIN",
+            "suggestion": "将子查询重构为 JOIN，或使用 CTE (WITH 语句) 优化",
             "category": "performance",
         },
         {
@@ -165,6 +173,7 @@ class SQLOptimizer:
             "pattern": r"SELECT\s+DISTINCT.*JOIN",
             "title": "DISTINCT + JOIN 可能暗示设计问题",
             "description": "DISTINCT 与 JOIN 一起使用可能是重复数据的修复手段，建议检查 JOIN 条件",
+            "suggestion": "检查 JOIN 条件是否正确，考虑使用 EXISTS 子查询替代",
             "category": "correctness",
         },
         {
@@ -173,6 +182,7 @@ class SQLOptimizer:
             "pattern": r"ORDER\s+BY\s+\w+(?!.*LIMIT)",
             "title": "ORDER BY 无 LIMIT",
             "description": "ORDER BY 但没有 LIMIT 会对全量结果排序，开销大",
+            "suggestion": "添加 LIMIT 限制排序结果数量，减少排序开销",
             "category": "performance",
         },
         {
@@ -181,14 +191,26 @@ class SQLOptimizer:
             "pattern": r"\bUNION\s(?!ALL)",
             "title": "使用 UNION 而非 UNION ALL",
             "description": "UNION 会去重（排序+比较），如果不需要去重使用 UNION ALL",
+            "suggestion": "如不需去重，将 UNION 改为 UNION ALL 以提升性能",
             "category": "performance",
         },
     ]
+
+    @classmethod
+    def _compile_rules(cls, rules: list) -> list:
+        """为规则列表预编译正则表达式"""
+        compiled = []
+        for rule in rules:
+            compiled_rule = dict(rule)
+            compiled_rule["_compiled"] = re.compile(rule["pattern"], re.IGNORECASE)
+            compiled.append(compiled_rule)
+        return compiled
 
     def __init__(self, db_type: str = "MySQL"):
         self.db_type = db_type
         self.issues: List[SQLIssue] = []
         self.sql = ""
+        self._compiled_rules = self._compile_rules(self.RULES)
 
     def analyze(self, sql: str) -> SQLReport:
         """执行 SQL 分析"""
@@ -224,8 +246,8 @@ class SQLOptimizer:
         """应用检测规则"""
         lines = self.sql.split("\n")
         for line_num, line in enumerate(lines, 1):
-            for rule in self.RULES:
-                if re.search(rule["pattern"], line, re.IGNORECASE):
+            for rule in self._compiled_rules:
+                if rule["_compiled"].search(line):
                     self.issues.append(
                         SQLIssue(
                             severity=rule["severity"],
@@ -317,24 +339,31 @@ class SQLOptimizer:
 
 def main():
     import sys
+    import argparse
 
-    if len(sys.argv) < 2:
-        print("用法: python sql_optimizer.py <sql_file> [--db-type MySQL|PostgreSQL|SQLite]")
+    parser = argparse.ArgumentParser(description="SQL 查询分析与优化建议引擎")
+    parser.add_argument("sql_file", help="包含 SQL 的文件路径")
+    parser.add_argument("--db-type", default="MySQL",
+                        choices=["MySQL", "PostgreSQL", "SQLite"],
+                        help="数据库类型 (默认: MySQL)")
+    parser.add_argument("--json", action="store_true", dest="output_json",
+                        help="以 JSON 格式输出")
+    args = parser.parse_args()
+
+    try:
+        with open(args.sql_file, "r", encoding="utf-8") as f:
+            sql = f.read()
+    except FileNotFoundError:
+        print(f"错误: 文件 '{args.sql_file}' 不存在")
+        sys.exit(1)
+    except PermissionError:
+        print(f"错误: 无权读取文件 '{args.sql_file}'")
         sys.exit(1)
 
-    sql_file = sys.argv[1]
-    db_type = "MySQL"
-    for i, arg in enumerate(sys.argv[2:], 2):
-        if arg == "--db-type" and i + 1 < len(sys.argv):
-            db_type = sys.argv[i + 1]
-
-    with open(sql_file, "r", encoding="utf-8") as f:
-        sql = f.read()
-
-    optimizer = SQLOptimizer(db_type)
+    optimizer = SQLOptimizer(args.db_type)
     report = optimizer.analyze(sql)
 
-    if len(sys.argv) > 2 and "--json" in sys.argv:
+    if args.output_json:
         print(report.to_json())
     else:
         print(report.to_markdown())

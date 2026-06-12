@@ -49,6 +49,25 @@ SEVERITY_SCORE = {
 
 
 @dataclass
+class ReviewPattern:
+    """统一的审查规则模式定义"""
+    severity: Severity
+    category: Category
+    pattern: str  # 正则表达式
+    description: str
+    fix: str = ""
+    owasp: str = ""
+    cwe: str = ""
+    _compiled: Optional[re.Pattern] = field(default=None, repr=False, init=False)
+
+    def __post_init__(self):
+        self._compiled = re.compile(self.pattern, re.IGNORECASE)
+
+    def matches(self, line: str) -> bool:
+        return bool(self._compiled.search(line))
+
+
+@dataclass
 class Issue:
     severity: str
     category: str
@@ -170,98 +189,87 @@ class CodeReviewer:
     """代码审查引擎 — 多维度扫描 + 严重性分级 + 修复建议"""
 
     # 安全漏洞模式库
-    SECURITY_PATTERNS = [
+    SECURITY_PATTERNS: List[ReviewPattern] = [
         # SQL 注入
-        (
+        ReviewPattern(
             Severity.HIGH, Category.SECURITY,
             r"f['\"].*SELECT.*\{",
             "SQL 注入风险：使用 f-string 拼接 SQL",
             "使用参数化查询或 ORM",
-            "A03:2021 – Injection",
-            "CWE-89",
+            "A03:2021 – Injection", "CWE-89",
         ),
-        (
+        ReviewPattern(
             Severity.HIGH, Category.SECURITY,
             r"\.execute\([^,)]*\+",
             "SQL 注入风险：字符串拼接构造查询",
             "使用参数化查询",
-            "A03:2021 – Injection",
-            "CWE-89",
+            "A03:2021 – Injection", "CWE-89",
         ),
-        (
+        ReviewPattern(
             Severity.HIGH, Category.SECURITY,
             r"eval\(",
             "代码注入风险：使用 eval()",
             "避免使用 eval，使用 ast.literal_eval 或 json.loads",
-            "A03:2021 – Injection",
-            "CWE-95",
+            "A03:2021 – Injection", "CWE-95",
         ),
-        (
+        ReviewPattern(
             Severity.HIGH, Category.SECURITY,
             r"exec\(",
             "代码注入风险：使用 exec()",
             "重构为安全的动态导入方案",
-            "A03:2021 – Injection",
-            "CWE-95",
+            "A03:2021 – Injection", "CWE-95",
         ),
-        (
+        ReviewPattern(
             Severity.CRITICAL, Category.SECURITY,
             r"(password|passwd|pwd|secret|api_key|apikey|token)\s*=\s*['\"][^'\"]+['\"]",
             "硬编码敏感信息：检测到密码/密钥/Token",
             "使用环境变量或密钥管理服务",
-            "A02:2021 – Cryptographic Failures",
-            "CWE-798",
+            "A02:2021 – Cryptographic Failures", "CWE-798",
         ),
-        (
+        ReviewPattern(
             Severity.HIGH, Category.SECURITY,
             r"subprocess\.(call|run|Popen)\([^)]*shell\s*=\s*True",
             "命令注入风险：shell=True 启用 Shell 解释",
             "设置 shell=False，使用参数列表",
-            "A03:2021 – Injection",
-            "CWE-78",
+            "A03:2021 – Injection", "CWE-78",
         ),
-        (
+        ReviewPattern(
             Severity.HIGH, Category.SECURITY,
             r"requests?\.(get|post|put|delete)\([^)]*verify\s*=\s*False",
             "SSL 验证被禁用",
             "始终启用 verify=True 或配置证书",
-            "A02:2021 – Cryptographic Failures",
-            "CWE-295",
+            "A02:2021 – Cryptographic Failures", "CWE-295",
         ),
         # XSS 相关（JS/TS/前端）
-        (
+        ReviewPattern(
             Severity.HIGH, Category.SECURITY,
             r"innerHTML\s*=",
             "XSS 风险：直接设置 innerHTML",
             "使用 textContent 或 DOMPurify 清洗",
-            "A03:2021 – Injection",
-            "CWE-79",
+            "A03:2021 – Injection", "CWE-79",
         ),
-        (
+        ReviewPattern(
             Severity.HIGH, Category.SECURITY,
             r"dangerouslySetInnerHTML",
             "XSS 风险：React 危险属性",
             "使用 DOMPurify 清洗后渲染",
-            "A03:2021 – Injection",
-            "CWE-79",
+            "A03:2021 – Injection", "CWE-79",
         ),
     ]
 
     # 性能问题模式
-    PERFORMANCE_PATTERNS = [
-        (
+    PERFORMANCE_PATTERNS: List[ReviewPattern] = [
+        ReviewPattern(
             Severity.MEDIUM, Category.PERFORMANCE,
             r"for .+ in .+:\s*\n\s*\.append\(",
             "循环内重复操作：建议使用列表推导式或 map",
-            "",
         ),
-        (
-            Severity.MEDIUM, Category.PERFORMANCE,  # type: ignore
+        ReviewPattern(
+            Severity.MEDIUM, Category.PERFORMANCE,
             r"SELECT \* FROM",
             "避免 SELECT *，指定所需字段",
-            "",
         ),
-        (
+        ReviewPattern(
             Severity.MEDIUM, Category.PERFORMANCE,
             r"\.get\(.*\)\s*in\s+.*:\s*\n.*\.get\(",
             "N+1 查询模式：循环中重复查询数据库",
@@ -270,38 +278,38 @@ class CodeReviewer:
     ]
 
     # 代码质量模式
-    QUALITY_PATTERNS = [
-        (
+    QUALITY_PATTERNS: List[ReviewPattern] = [
+        ReviewPattern(
             Severity.LOW, Category.MAINTAINABILITY,
             r"def .{50,}\(",
             "函数名过长（>50字符），可读性差",
             "缩短函数名，使用清晰简洁的命名",
         ),
-        (
+        ReviewPattern(
             Severity.LOW, Category.STYLE,
             r"print\(",
             "调试代码：包含 print 语句",
             "使用 logging 模块替代 print",
         ),
-        (
+        ReviewPattern(
             Severity.INFO, Category.DOCUMENTATION,
             r"def \w+\([^)]*\):\s*\n(?!\s*[\"']{3})",
             "函数缺少文档字符串",
             "添加 docstring 描述函数功能、参数和返回值",
         ),
-        (
+        ReviewPattern(
             Severity.MEDIUM, Category.MAINTAINABILITY,
             r"if .+:\s*\n(?:.*\n){15,}.*else:",
             "if 分支过长（>15行），建议提取为独立函数",
             "将分支逻辑提取为独立函数",
         ),
-        (
+        ReviewPattern(
             Severity.LOW, Category.CORRECTNESS,
             r"except:",
             "裸 except 捕获所有异常，隐藏错误",
             "指定具体异常类型",
         ),
-        (
+        ReviewPattern(
             Severity.MEDIUM, Category.CORRECTNESS,
             r"except\s+\w+:\s*\n\s*pass",
             "空异常处理（pass），可能隐藏错误",
@@ -321,9 +329,9 @@ class CodeReviewer:
         lines = code.split("\n")
 
         # 执行各维度扫描
-        self._scan_security(code, lines)
-        self._scan_performance(code, lines)
-        self._scan_quality(code, lines)
+        self._scan(self.SECURITY_PATTERNS, lines)
+        self._scan(self.PERFORMANCE_PATTERNS, lines)
+        self._scan(self.QUALITY_PATTERNS, lines)
 
         # 计算维度评分
         dimensions = self._compute_dimensions()
@@ -336,78 +344,26 @@ class CodeReviewer:
             dimensions=dimensions,
         )
 
-    def _scan_security(self, code: str, lines: List[str]):
-        """安全扫描"""
-        for sev, cat, pattern, desc, fix, owasp, cwe in self.SECURITY_PATTERNS:
+    def _scan(self, patterns: List[ReviewPattern], lines: List[str]):
+        """统一的扫描方法 — 应用规则列表并记录问题"""
+        for rule in patterns:
             for i, line in enumerate(lines, 1):
                 stripped = line.strip()
                 if stripped.startswith("#"):
                     continue
-                if re.search(pattern, stripped, re.IGNORECASE):
+                if rule.matches(stripped):
                     self.issues.append(
                         Issue(
-                            severity=sev.value,
-                            category=cat.value,
+                            severity=rule.severity.value,
+                            category=rule.category.value,
                             line=i,
-                            title=self._shorten(desc, 40),
-                            description=desc,
-                            fix=fix,
+                            title=self._shorten(rule.description, 40),
+                            description=rule.description,
+                            fix=rule.fix,
                             code_before=stripped,
-                            code_after=fix if fix else "",
-                            owasp=owasp or "",
-                            cwe=cwe or "",
-                        )
-                    )
-
-    def _scan_performance(self, code: str, lines: List[str]):
-        """性能扫描"""
-        for item in self.PERFORMANCE_PATTERNS:
-            if len(item) == 3:
-                sev, cat, pattern = item
-                desc = ""
-                fix = ""
-            else:
-                sev, cat, pattern, desc, fix = item
-            for i, line in enumerate(lines, 1):
-                stripped = line.strip()
-                if stripped.startswith("#"):
-                    continue
-                if re.search(pattern, stripped, re.IGNORECASE):
-                    self.issues.append(
-                        Issue(
-                            severity=sev.value,
-                            category=cat.value,
-                            line=i,
-                            title=self._shorten(desc, 40) if desc else "性能问题",
-                            description=desc or f"潜在性能问题: {pattern}",
-                            fix=fix,
-                            code_before=stripped,
-                        )
-                    )
-
-    def _scan_quality(self, code: str, lines: List[str]):
-        """代码质量扫描"""
-        for item in self.QUALITY_PATTERNS:
-            if len(item) == 3:
-                sev, cat, pattern = item
-                desc = ""
-                fix = ""
-            else:
-                sev, cat, pattern, desc, fix = item
-            for i, line in enumerate(lines, 1):
-                stripped = line.strip()
-                if stripped.startswith("#"):
-                    continue
-                if re.search(pattern, stripped, re.IGNORECASE):
-                    self.issues.append(
-                        Issue(
-                            severity=sev.value,
-                            category=cat.value,
-                            line=i,
-                            title=self._shorten(desc, 40) if desc else "代码质量问题",
-                            description=desc or f"代码风格问题: {pattern}",
-                            fix=fix,
-                            code_before=stripped,
+                            code_after=rule.fix if rule.fix else "",
+                            owasp=rule.owasp,
+                            cwe=rule.cwe,
                         )
                     )
 
@@ -445,22 +401,30 @@ class CodeReviewer:
 
 def main():
     import sys
+    import argparse
 
-    if len(sys.argv) < 2:
-        print("用法: python code_reviewer.py <code_file> [language]")
+    parser = argparse.ArgumentParser(description="代码审查引擎 — 多维度扫描 + 严重性分级")
+    parser.add_argument("code_file", help="待审查的源代码文件路径")
+    parser.add_argument("language", nargs="?", default="python",
+                        help="编程语言 (默认: python)")
+    parser.add_argument("--json", action="store_true", dest="output_json",
+                        help="以 JSON 格式输出")
+    args = parser.parse_args()
+
+    try:
+        with open(args.code_file, "r", encoding="utf-8") as f:
+            code = f.read()
+    except FileNotFoundError:
+        print(f"错误: 文件 '{args.code_file}' 不存在")
+        sys.exit(1)
+    except PermissionError:
+        print(f"错误: 无权读取文件 '{args.code_file}'")
         sys.exit(1)
 
-    file_path = sys.argv[1]
-    language = sys.argv[2] if len(sys.argv) > 2 else "python"
+    reviewer = CodeReviewer(args.language)
+    report = reviewer.review(code, args.code_file)
 
-    with open(file_path, "r", encoding="utf-8") as f:
-        code = f.read()
-
-    reviewer = CodeReviewer(language)
-    report = reviewer.review(code, file_path)
-
-    # 输出
-    if len(sys.argv) > 3 and sys.argv[3] == "--json":
+    if args.output_json:
         print(report.to_json())
     else:
         print(report.to_markdown())

@@ -371,34 +371,40 @@ class TestGenerator:
 
 def main():
     import sys
+    import argparse
 
-    if len(sys.argv) < 3:
-        print("用法: python test_generator.py <code_file> <function_name> [--framework jest|pytest|go-test]")
+    parser = argparse.ArgumentParser(description="测试用例自动生成器")
+    parser.add_argument("code_file", help="包含目标函数的源代码文件路径")
+    parser.add_argument("function_name", help="要生成测试的函数名")
+    parser.add_argument("--framework", default="pytest",
+                        choices=["pytest", "jest", "go-test"],
+                        help="测试框架 (默认: pytest)")
+    parser.add_argument("--json", action="store_true", dest="output_json",
+                        help="以 JSON 格式输出")
+    args = parser.parse_args()
+
+    try:
+        with open(args.code_file, "r", encoding="utf-8") as f:
+            code = f.read()
+    except FileNotFoundError:
+        print(f"错误: 文件 '{args.code_file}' 不存在")
+        sys.exit(1)
+    except PermissionError:
+        print(f"错误: 无权读取文件 '{args.code_file}'")
         sys.exit(1)
 
-    code_file = sys.argv[1]
-    func_name = sys.argv[2]
-    framework = "pytest"
-    for i, arg in enumerate(sys.argv[3:], 3):
-        if arg == "--framework" and i + 1 < len(sys.argv):
-            framework = sys.argv[i + 1]
-
-    with open(code_file, "r", encoding="utf-8") as f:
-        code = f.read()
-
     lang = "python"
-    if code_file.endswith(".js") or code_file.endswith(".ts"):
+    if args.code_file.endswith(".js") or args.code_file.endswith(".ts"):
         lang = "javascript"
-    elif code_file.endswith(".go"):
+    elif args.code_file.endswith(".go"):
         lang = "go"
 
-    gen = TestGenerator(language=lang, framework=framework)
-    suite = gen.generate(code, func_name)
+    gen = TestGenerator(language=lang, framework=args.framework)
+    suite = gen.generate(code, args.function_name)
 
-    # 输出
-    if len(sys.argv) > 3 and "--json" in sys.argv:
+    if args.output_json:
         print(json.dumps(
-            {"function": func_name, "framework": framework,
+            {"function": args.function_name, "framework": args.framework,
              "coverage": suite.coverage_estimate,
              "test_cases": [tc.to_dict() for tc in suite.test_cases]},
             indent=2, ensure_ascii=False,

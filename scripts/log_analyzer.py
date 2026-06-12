@@ -78,6 +78,21 @@ class LogReport:
 
         return "\n".join(lines)
 
+    def to_json(self) -> str:
+        return json.dumps(
+            {
+                "log_file": self.log_file,
+                "total_lines": self.total_lines,
+                "time_range": self.time_range,
+                "patterns": [p.to_dict() for p in self.patterns],
+                "root_causes": self.root_causes,
+                "alert_rules": self.alert_rules,
+                "format_issues": self.format_issues,
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
+
 
 class LogAnalyzer:
     """日志分析与异常检测引擎"""
@@ -127,8 +142,9 @@ class LogAnalyzer:
         self.time_range = ""
         self.format_issues: List[str] = []
 
-    def analyze(self, log_content: str, log_format: str = "plain") -> Dict:
-        """执行日志分析"""
+    def analyze(self, log_content: str, log_file: str = "input",
+                log_format: str = "plain") -> LogReport:
+        """执行日志分析，返回 LogReport 对象"""
         self.total_lines = len(log_content.split("\n"))
         self.patterns_found = []
 
@@ -178,14 +194,15 @@ class LogAnalyzer:
         # 生成告警规则
         alert_rules = self._generate_alert_rules()
 
-        return {
-            "total_lines": self.total_lines,
-            "time_range": self.time_range,
-            "patterns": [p.to_dict() for p in self.patterns_found],
-            "root_causes": root_causes,
-            "alert_rules": alert_rules,
-            "format_issues": self.format_issues,
-        }
+        return LogReport(
+            log_file=log_file,
+            total_lines=self.total_lines,
+            time_range=self.time_range,
+            patterns=list(self.patterns_found),
+            root_causes=root_causes,
+            alert_rules=alert_rules,
+            format_issues=list(self.format_issues),
+        )
 
     def _extract_time_range(self, lines: List[str]) -> str:
         """从日志中提取时间范围"""
@@ -287,35 +304,33 @@ class LogAnalyzer:
 
 def main():
     import sys
+    import argparse
 
-    if len(sys.argv) < 2:
-        print("用法: python log_analyzer.py <log_file> [--format plain|json|syslog]")
+    parser = argparse.ArgumentParser(description="日志分析与异常检测引擎")
+    parser.add_argument("log_file", help="日志文件路径")
+    parser.add_argument("--format", default="plain",
+                        choices=["plain", "json", "syslog"],
+                        help="日志格式 (默认: plain)")
+    parser.add_argument("--json", action="store_true", dest="output_json",
+                        help="以 JSON 格式输出")
+    args = parser.parse_args()
+
+    try:
+        with open(args.log_file, "r", encoding="utf-8") as f:
+            content = f.read()
+    except FileNotFoundError:
+        print(f"错误: 文件 '{args.log_file}' 不存在")
+        sys.exit(1)
+    except PermissionError:
+        print(f"错误: 无权读取文件 '{args.log_file}'")
         sys.exit(1)
 
-    log_file = sys.argv[1]
-    log_format = "plain"
-    for i, arg in enumerate(sys.argv[2:], 2):
-        if arg == "--format" and i + 1 < len(sys.argv):
-            log_format = sys.argv[i + 1]
-
-    with open(log_file, "r", encoding="utf-8") as f:
-        content = f.read()
-
     analyzer = LogAnalyzer()
-    result = analyzer.analyze(content, log_format)
+    report = analyzer.analyze(content, log_file=args.log_file, log_format=args.format)
 
-    if "--json" in sys.argv:
-        print(json.dumps(result, indent=2, ensure_ascii=False))
+    if args.output_json:
+        print(report.to_json())
     else:
-        report = LogReport(
-            log_file=log_file,
-            total_lines=result["total_lines"],
-            time_range=result["time_range"],
-            patterns=[LogPattern(**p) for p in result["patterns"]],
-            root_causes=result["root_causes"],
-            alert_rules=result["alert_rules"],
-            format_issues=result["format_issues"],
-        )
         print(report.to_markdown())
 
 
