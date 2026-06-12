@@ -14,7 +14,7 @@ class TestSecurityScanner:
         self.scanner = SecurityScanner("python")
 
     def test_detect_hardcoded_password(self):
-        code = 'api_key = "sk-1234567890abcdef"'
+        code = 'api_key = "sk-EXAMPLE_KEY"'
         report = self.scanner.scan(code, "test.py")
         assert any("硬编码" in i.title for i in report.issues)
 
@@ -76,7 +76,7 @@ class TestSecurityScanner:
         assert not any("eval" in i.title.lower() for i in report.issues)
 
     def test_risk_level_high(self):
-        code = 'password = "secret123"\neval(user_input)\nexec(code)\nsubprocess.run(cmd, shell=True)'
+        code = 'password = "EXAMPLE_PASSWORD"\neval(user_input)\nexec(code)\nsubprocess.run(cmd, shell=True)'
         report = self.scanner.scan(code, "test.py")
         assert report.risk_score >= 7
         assert "高风险" in report.risk_level

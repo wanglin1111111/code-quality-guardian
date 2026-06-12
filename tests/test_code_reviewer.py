@@ -40,7 +40,7 @@ class TestCodeReviewer:
         assert any("eval" in i.description for i in report.issues)
 
     def test_detect_hardcoded_secret(self):
-        code = 'password = "my_secret_password_123"'
+        code = 'password = "EXAMPLE_PASSWORD"'
         report = self.reviewer.review(code, "test.py")
         assert any(i.severity == Severity.CRITICAL.value for i in report.issues)
 
@@ -83,7 +83,7 @@ class TestCodeReviewer:
         assert not any("eval" in i.description for i in report.issues)
 
     def test_severity_summary(self):
-        code = 'eval("x")\nexec("y")\npassword = "secret123"'
+        code = 'eval("x")\nexec("y")\npassword = "EXAMPLE_PASSWORD"'
         report = self.reviewer.review(code, "test.py")
         summary = report.summary
         assert summary["CRITICAL"] >= 1

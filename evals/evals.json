@@ -22,7 +22,7 @@
       "id": "core-02",
       "category": "核心样本",
       "capability": "安全漏洞扫描",
-      "prompt": "扫描这段代码的安全漏洞：\n```python\npassword = \"admin123456\"\napi_key = \"sk-live-abcdef123456\"\nresult = eval(user_data)\ntoken = random.randint(0, 999999)\nrequests.get(url, verify=False)\n```",
+      "prompt": "扫描这段代码的安全漏洞：\n```python\npassword = \"EXAMPLE_PASSWORD\"\napi_key = \"sk-EXAMPLE_KEY\"\nresult = eval(user_data)\ntoken = random.randint(0, 999999)\nrequests.get(url, verify=False)\n```",
       "expected_output": "安全扫描报告，覆盖 OWASP Top 10 和 CWE 映射，风险评分 0-10",
       "assertions": [
         { "id": "b1", "text": "检测到硬编码密码和 API Key（CRITICAL），映射到 CWE-798" },
@@ -220,7 +220,7 @@
       "category": "已知坑",
       "capability": "安全扫描",
       "scenario": "同一行被多条规则重复报告",
-      "prompt": "扫描这段代码：\n```python\nresult = eval(exec('print(\"hello\")'))\npassword = 'secret12345678'\n```",
+      "prompt": "扫描这段代码：\n```python\nresult = eval(exec('print(\"hello\")'))\npassword = 'EXAMPLE_PASSWORD'\n```",
       "expected_output": "去重后的安全报告，同一行同一类别不重复报告",
       "assertions": [
         { "id": "p1", "text": "eval 和 exec 在同一行时应分别报告（不同漏洞类型）" },
