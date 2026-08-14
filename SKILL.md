@@ -1,9 +1,26 @@
 ---
 name: code-quality-guardian
-description: 代码质量保障与智能辅助专家。覆盖代码审查、测试用例生成、代码规范校验、日志异常检测、SQL优化建议、性能瓶颈分析、代码缺陷定位与修复建议、安全漏洞扫描、代码生成与补全、API接口文档生成等全场景。当用户需要进行代码质量检查、生成测试用例、分析代码缺陷、优化SQL查询、检测安全漏洞、审查Pull Request、分析异常日志、生成代码、补全函数、自动生成注释或生成API文档时触发使用。
+version: 1.1.0
+description: |
+  代码质量保障与智能辅助专家：代码审查、测试生成、缺陷定位、SQL 优化、性能分析、安全漏洞扫描。当用户需要代码质量检查、生成测试、审查 PR、分析日志、扫描安全漏洞、生成代码或 API 文档时使用。不适用于：运行时入侵检测、渗透测试执行（用 codex-security）、生产环境变更操作。
 ---
 
-# Code Quality Guardian — 代码质量保障与智能辅助
+# SKILL.md - code-quality-guardian
+
+## 任务边界
+
+**做什么**：静态代码审查（安全/性能/可维护性/正确性/测试覆盖）、测试用例生成、SQL 与复杂度分析、日志异常检测、安全模式扫描建议。
+**不做什么**：渗透测试与漏洞利用、生产环境直接变更、密钥与凭据管理代行。
+**红线**：安全扫描产出必须覆盖：注入类（SQL/命令）、硬编码密钥、反序列化、路径穿越、越权；修复建议不得引入新的不安全模式。
+
+## Gotchas 速查（详见 references/gotchas.md）
+
+1. f-string/format 拼 SQL 是最常见注入点，参数化（占位符+参数元组）是唯一正解——'输入已过滤'不是理由
+2. 命令拼接 shell=True + 字符串插值 = 命令注入；用参数列表形式（shell=False）从根上消除
+3. os.path.join(base, user_input) 防不了路径穿越（user_input 含 ../ 时 join 直接放行），必须再套 resolve+相对性校验
+4. pickle.loads/yaml.load(未指定 Loader) 处理不可信输入=任意代码执行，改 JSON 或 safe_load
+5. 硬编码密钥一旦进 Git 历史，删除文件无效——需要轮换密钥+历史重写（或平台 BFG 清理）
+6. JWT 校验必须固定允许的算法白名单，'alg: none' 与算法混淆攻击（RS256→HS256）都有现成利用链
 
 ## 核心能力
 
@@ -373,3 +390,15 @@ def calculate_total(items):
 [粘贴 FastAPI/Express 代码]
 助手: [提取所有端点 → 生成 Markdown/OpenAPI 格式文档]
 ```
+
+
+---
+
+## 输出规范（validate.py 断言）
+
+本技能产出的分析/方案文档，必须同时满足：
+- **应含**：本文件输出规范所列合规要素
+- **不应含**：红线违规模式（详见 scripts/validate.py BAD_VIOLATIONS）
+
+校验命令：`python scripts/validate.py <文档路径>`（exit 0=通过，1=违规或缺失，2=文件错误）
+双样例：`tests/sample_good.md` → 0；`tests/sample_bad.md` → 1。两者必须同时验证通过才视为技能可用。
