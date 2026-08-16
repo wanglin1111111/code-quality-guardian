@@ -2,6 +2,22 @@
 
 > 代码质量保障与智能辅助 — 覆盖代码审查、测试生成、SQL 优化、日志分析、安全扫描、复杂度分析、代码生成与补全、API 文档生成
 
+> **🎯 赛道申报：AI 开发赛道 — 编码开发类**
+>
+> | 申报项 | 内容 |
+> |---|---|
+> | **技能名称** | Code Quality Guardian（代码质量守护者） |
+> | **赛道分类** | AI 开发 / 编码开发辅助 |
+> | **一句话定位** | 覆盖编码全流程的 AI 质量守护 Skill：写前生成、写中审查、写后验证、事后诊断 |
+> | **核心能力（8 项）** | 代码审查 / 测试生成 / SQL 优化 / 日志分析 / 安全扫描（OWASP Top 10 + CWE Top 25）/ 复杂度分析 / 代码生成与补全 / API 文档生成 |
+> | **工程形态** | 7 个独立 Python 引擎脚本（约 4400 行，零外部依赖）+ 4 份方法论参考文档 + 双样例测试集 |
+> | **语言覆盖** | Python / JavaScript / TypeScript / Java / Go / SQL |
+> | **输出格式** | 结构化 Markdown（人读）+ JSON（机读，可接 CI） |
+> | **与 Agent 生态的集成** | 标准 SKILL.md 入口，可作为 Claude Code / Codex / OpenClaw 等 Agent Harness 的可调用技能；validate.py 校验（exit 0/1/2 规范） |
+> | **验证状态** | 双样例断言通过（sample_good → exit 0，sample_bad → exit≠0），pass:verified |
+
+---
+
 ## 安装
 
 ```bash
