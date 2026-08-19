@@ -28,7 +28,7 @@ GOOD_REQUIREMENTS = [
     ('注入|SQL|命令|injection', '缺少注入类检查'),
     ('(硬编码|secret|密钥|凭据)', '缺少硬编码密钥检查'),
     ('反序列化|pickle|yaml', '缺少反序列化检查'),
-    ('(路径穿越|traversal|\\\\.\\\\.)', '缺少路径穿越检查'),
+    ('(路径穿越|traversal|\\.\\.)', '缺少路径穿越检查'),
     ('(越权|IDOR|鉴权|授权)', '缺少越权/鉴权检查'),
     ('参数化|占位符|shell=False|safe_load|白名单', '缺少安全修复模式建议'),
 ]
@@ -37,7 +37,7 @@ BAD_VIOLATIONS = [
     ('shell\\s*=\\s*True.{0,20}(拼接|format|%s|\\+|f[\'\\"])', '命中违规：shell=True 拼接命令'),
     ('(SELECT|INSERT|UPDATE|DELETE).{0,30}(f[\'\\"]|\\.format|%s.{0,10}%)', '命中违规：SQL 字符串拼接'),
     ('(password|api_key|secret|token)\\s*=\\s*[\'\\"][A-Za-z0-9]{16,}', '命中违规：硬编码密钥'),
-    ('pickle\\.loads?\\(|yaml\\.load\\((?!, ?Loader)', '命中违规：不安全反序列化'),
+    ('pickle\\.loads?\\(|yaml\\.load\\((?![^)]*Loader)', '命中违规：不安全反序列化'),
     ('eval\\(|exec\\(.{0,20}(input|request|用户)', '命中违规：eval/exec 用户输入'),
     ('(忽略|跳过|不用).{0,4}(鉴权|验证|校验|授权)', '命中违规：跳过鉴权/校验'),
 ]
