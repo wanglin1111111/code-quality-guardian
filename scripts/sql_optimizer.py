@@ -5,11 +5,10 @@ SQL Optimizer — SQL 查询分析与优化建议引擎
 功能：慢查询识别、执行计划分析、索引建议、重写优化
 """
 
-import re
 import json
-from dataclasses import dataclass, field, asdict
-from typing import List, Optional, Dict, Tuple
-from datetime import datetime, timezone, timedelta
+import re
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 
 
 @dataclass
@@ -30,9 +29,9 @@ class SQLReport:
     original_sql: str
     db_type: str
     timestamp: str
-    issues: List[SQLIssue]
+    issues: list[SQLIssue]
     optimized_sql: str
-    index_suggestions: List[str]
+    index_suggestions: list[str]
     complexity_score: int  # 1-10
 
     def to_markdown(self) -> str:
@@ -53,8 +52,8 @@ class SQLReport:
                 lines.append(f"**问题**: {issue.description}")
                 lines.append(f"**建议**: {issue.suggestion}")
                 if issue.optimized_sql:
-                    lines.append(f"**优化SQL**:")
-                    lines.append(f"```sql")
+                    lines.append("**优化SQL**:")
+                    lines.append("```sql")
                     lines.append(issue.optimized_sql)
                     lines.append("```")
                 lines.append("")
@@ -208,7 +207,7 @@ class SQLOptimizer:
 
     def __init__(self, db_type: str = "MySQL"):
         self.db_type = db_type
-        self.issues: List[SQLIssue] = []
+        self.issues: list[SQLIssue] = []
         self.sql = ""
         self._compiled_rules = self._compile_rules(self.RULES)
 
@@ -258,7 +257,7 @@ class SQLOptimizer:
                         )
                     )
 
-    def _extract_tables(self) -> List[str]:
+    def _extract_tables(self) -> list[str]:
         """提取 SQL 中的表名"""
         tables = []
         # FROM 子句
@@ -269,10 +268,9 @@ class SQLOptimizer:
         tables.extend(join_match)
         return list(set(tables))
 
-    def _suggest_indexes(self, tables: List[str]) -> List[str]:
+    def _suggest_indexes(self, tables: list[str]) -> list[str]:
         """生成索引建议"""
         suggestions = []
-        sql_upper = self.sql.upper()
 
         # WHERE 条件列
         where_columns = re.findall(r"WHERE\s+(\w+)\s*[=<>]", self.sql, re.IGNORECASE)
@@ -287,7 +285,7 @@ class SQLOptimizer:
 
         # JOIN 条件列
         join_cols = re.findall(r"ON\s+\w+\.(\w+)\s*=\s*\w+\.(\w+)", self.sql, re.IGNORECASE)
-        for t1_col, t2_col in join_cols:
+        for _t1_col, t2_col in join_cols:
             suggestions.append(f"CREATE INDEX idx_{t2_col} ON {tables[1] if len(tables) > 1 else 'table2'} ({t2_col});")
 
         return list(set(suggestions))[:5]  # 最多返回5条建议
@@ -338,20 +336,19 @@ class SQLOptimizer:
 
 
 def main():
-    import sys
     import argparse
+    import sys
 
     parser = argparse.ArgumentParser(description="SQL 查询分析与优化建议引擎")
     parser.add_argument("sql_file", help="包含 SQL 的文件路径")
-    parser.add_argument("--db-type", default="MySQL",
-                        choices=["MySQL", "PostgreSQL", "SQLite"],
-                        help="数据库类型 (默认: MySQL)")
-    parser.add_argument("--json", action="store_true", dest="output_json",
-                        help="以 JSON 格式输出")
+    parser.add_argument(
+        "--db-type", default="MySQL", choices=["MySQL", "PostgreSQL", "SQLite"], help="数据库类型 (默认: MySQL)"
+    )
+    parser.add_argument("--json", action="store_true", dest="output_json", help="以 JSON 格式输出")
     args = parser.parse_args()
 
     try:
-        with open(args.sql_file, "r", encoding="utf-8") as f:
+        with open(args.sql_file, encoding="utf-8") as f:
             sql = f.read()
     except FileNotFoundError:
         print(f"错误: 文件 '{args.sql_file}' 不存在")

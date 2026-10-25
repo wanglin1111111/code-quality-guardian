@@ -5,11 +5,10 @@ Security Scanner — 安全漏洞扫描器
 功能：依赖安全检测、密钥扫描、注入攻击检测、权限校验
 """
 
-import re
 import json
-from dataclasses import dataclass, field, asdict
-from typing import List, Dict, Optional, Tuple
-from datetime import datetime, timezone, timedelta
+import re
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 
 
 @dataclass
@@ -33,7 +32,7 @@ class SecurityReport:
     file: str
     language: str
     timestamp: str
-    issues: List[SecurityIssue]
+    issues: list[SecurityIssue]
     risk_score: int  # 0-10
     risk_level: str
 
@@ -57,9 +56,15 @@ class SecurityReport:
 
         for cat, issues in categories.items():
             cat_emoji = {
-                "injection": "💉", "xss": "🔥", "csrf": "🎭",
-                "auth": "🔑", "crypto": "🔐", "exposure": "📦",
-                "config": "⚙️", "dependency": "📦", "hardcoded": "🔓"
+                "injection": "💉",
+                "xss": "🔥",
+                "csrf": "🎭",
+                "auth": "🔑",
+                "crypto": "🔐",
+                "exposure": "📦",
+                "config": "⚙️",
+                "dependency": "📦",
+                "hardcoded": "🔓",
             }.get(cat, "⚠️")
             lines.append(f"### {cat_emoji} {cat.upper()} 类漏洞\n")
             for idx, issue in enumerate(issues, 1):
@@ -68,7 +73,7 @@ class SecurityReport:
                 lines.append(f"**位置**: line {issue.line}")
                 lines.append(f"**问题**: {issue.description}")
                 if issue.code_snippet:
-                    lines.append(f"**代码**:")
+                    lines.append("**代码**:")
                     lines.append(f"```{self.language}")
                     lines.append(issue.code_snippet)
                     lines.append("```")
@@ -103,7 +108,8 @@ class SecurityScanner:
     OWASP_RULES = [
         # A01: Broken Access Control
         {
-            "severity": "HIGH", "category": "auth",
+            "severity": "HIGH",
+            "category": "auth",
             "pattern": r"(?:@RequestMapping|@GetMapping|@PostMapping|@PutMapping|@DeleteMapping)\s*\([^)]*\)\s*\n\s*(?:public|def)\s+\w+",
             "title": "缺少权限校验注解",
             "description": "API 端点缺少 @PreAuthorize 或等效权限校验，可能导致越权访问",
@@ -112,7 +118,8 @@ class SecurityScanner:
             "cwe": "CWE-285",
         },
         {
-            "severity": "HIGH", "category": "auth",
+            "severity": "HIGH",
+            "category": "auth",
             "pattern": r"if\s*\(.*(?:role|Role|permission|Permission)\s*[=!]",
             "title": "客户端侧权限校验",
             "description": "权限校验可能仅在客户端执行，服务端缺少验证",
@@ -122,7 +129,8 @@ class SecurityScanner:
         },
         # A02: Cryptographic Failures
         {
-            "severity": "CRITICAL", "category": "hardcoded",
+            "severity": "CRITICAL",
+            "category": "hardcoded",
             "pattern": r"(?:password|passwd|pwd|secret|api_key|apikey|api_secret|token|private_key)\s*[=:]\s*['\"][^'\"]{8,}['\"]",
             "title": "硬编码敏感信息",
             "description": "检测到密码、密钥或 Token 被硬编码在源代码中",
@@ -131,7 +139,8 @@ class SecurityScanner:
             "cwe": "CWE-798",
         },
         {
-            "severity": "HIGH", "category": "crypto",
+            "severity": "HIGH",
+            "category": "crypto",
             "pattern": r"(?:MD5|SHA1)\s*\(",
             "title": "使用弱哈希算法",
             "description": "MD5/SHA1 已被证明不安全，存在碰撞攻击风险",
@@ -140,7 +149,8 @@ class SecurityScanner:
             "cwe": "CWE-327",
         },
         {
-            "severity": "HIGH", "category": "crypto",
+            "severity": "HIGH",
+            "category": "crypto",
             "pattern": r"DES\b|3DES\b|RC4\b",
             "title": "使用弱加密算法",
             "description": "DES/3DES/RC4 加密算法已被破解或存在已知漏洞",
@@ -150,7 +160,8 @@ class SecurityScanner:
         },
         # A03: Injection
         {
-            "severity": "CRITICAL", "category": "injection",
+            "severity": "CRITICAL",
+            "category": "injection",
             "pattern": r"(?:execute|query|exec)\s*\([^)]*\+[^)]*\)",
             "title": "SQL 注入风险（拼接查询）",
             "description": "使用字符串拼接构建 SQL 查询，存在注入风险",
@@ -159,7 +170,8 @@ class SecurityScanner:
             "cwe": "CWE-89",
         },
         {
-            "severity": "HIGH", "category": "injection",
+            "severity": "HIGH",
+            "category": "injection",
             "pattern": r"\.query\s*\([^)]*\$[^)]*\{[^)]*\}[^)]*\)",
             "title": "SQL 注入风险（模板字符串）",
             "description": "使用模板字符串构建 SQL 查询",
@@ -168,7 +180,8 @@ class SecurityScanner:
             "cwe": "CWE-89",
         },
         {
-            "severity": "HIGH", "category": "injection",
+            "severity": "HIGH",
+            "category": "injection",
             "pattern": r"eval\s*\(",
             "title": "代码注入风险（eval）",
             "description": "使用 eval() 执行动态代码，极其危险",
@@ -177,7 +190,8 @@ class SecurityScanner:
             "cwe": "CWE-95",
         },
         {
-            "severity": "HIGH", "category": "injection",
+            "severity": "HIGH",
+            "category": "injection",
             "pattern": r"exec\s*\(",
             "title": "代码注入风险（exec）",
             "description": "使用 exec() 执行动态代码",
@@ -186,7 +200,8 @@ class SecurityScanner:
             "cwe": "CWE-95",
         },
         {
-            "severity": "HIGH", "category": "injection",
+            "severity": "HIGH",
+            "category": "injection",
             "pattern": r"subprocess\.(?:call|run|Popen)\s*\([^)]*shell\s*=\s*True",
             "title": "命令注入风险",
             "description": "shell=True 允许 Shell 解释器执行，可能导致命令注入",
@@ -196,7 +211,8 @@ class SecurityScanner:
         },
         # A04: Insecure Design
         {
-            "severity": "MEDIUM", "category": "config",
+            "severity": "MEDIUM",
+            "category": "config",
             "pattern": r"DEBUG\s*=\s*True|debug\s*=\s*true|development\s+mode",
             "title": "调试模式在生产环境启用",
             "description": "DEBUG 模式在生产环境启用可能泄露敏感信息",
@@ -206,7 +222,8 @@ class SecurityScanner:
         },
         # A05: Security Misconfiguration
         {
-            "severity": "HIGH", "category": "config",
+            "severity": "HIGH",
+            "category": "config",
             "pattern": r"(?:verify|check_ssl|verify_mode)\s*[=:]\s*False",
             "title": "SSL/TLS 验证被禁用",
             "description": "禁用 SSL 证书验证，容易受到中间人攻击",
@@ -215,7 +232,8 @@ class SecurityScanner:
             "cwe": "CWE-295",
         },
         {
-            "severity": "MEDIUM", "category": "config",
+            "severity": "MEDIUM",
+            "category": "config",
             "pattern": r"CORS\s*[=:]\s*['\"]\*['\"]",
             "title": "CORS 配置为通配符",
             "description": "CORS 允许所有来源，可能导致跨站请求攻击",
@@ -225,7 +243,8 @@ class SecurityScanner:
         },
         # A06: Vulnerable and Outdated Components
         {
-            "severity": "MEDIUM", "category": "dependency",
+            "severity": "MEDIUM",
+            "category": "dependency",
             "pattern": r"import\s+(?:yaml|pickle|marshal|shelve)",
             "title": "使用不安全的数据反序列化库",
             "description": "yaml.load() / pickle.loads() 可执行任意代码",
@@ -235,7 +254,8 @@ class SecurityScanner:
         },
         # A07: Auth Failures
         {
-            "severity": "HIGH", "category": "auth",
+            "severity": "HIGH",
+            "category": "auth",
             "pattern": r"(?:password|passwd)\s*[=!]=\s*(?:md5|sha1)\s*\(",
             "title": "弱密码哈希",
             "description": "使用 MD5/SHA1 进行密码哈希",
@@ -244,7 +264,8 @@ class SecurityScanner:
             "cwe": "CWE-916",
         },
         {
-            "severity": "MEDIUM", "category": "auth",
+            "severity": "MEDIUM",
+            "category": "auth",
             "pattern": r"session\[.*\]\s*=",
             "title": "敏感数据存入 Session",
             "description": "Session 中可能存储了敏感信息，存在泄露风险",
@@ -254,7 +275,8 @@ class SecurityScanner:
         },
         # A08: Software and Data Integrity
         {
-            "severity": "HIGH", "category": "crypto",
+            "severity": "HIGH",
+            "category": "crypto",
             "pattern": r"random\.(?:random|randint|choice)\s*\(",
             "title": "使用不安全的随机数生成器",
             "description": "random 模块不适合用于安全场景（密码、token）",
@@ -264,7 +286,8 @@ class SecurityScanner:
         },
         # A09: Logging & Monitoring
         {
-            "severity": "MEDIUM", "category": "exposure",
+            "severity": "MEDIUM",
+            "category": "exposure",
             "pattern": r"(?:password|token|secret|key)\s*[=:]\s*[^,)]*(?:,|\))",
             "title": "敏感信息可能被记录到日志",
             "description": "print / log 语句可能输出敏感数据",
@@ -274,7 +297,8 @@ class SecurityScanner:
         },
         # A10: SSRF
         {
-            "severity": "HIGH", "category": "injection",
+            "severity": "HIGH",
+            "category": "injection",
             "pattern": r"requests?\.(?:get|post|put|delete)\s*\(\s*(?:request\.|params\.|input\.)",
             "title": "可能的 SSRF 漏洞",
             "description": "URL 来自用户输入，可能导致服务端请求伪造",
@@ -284,7 +308,8 @@ class SecurityScanner:
         },
         # XSS
         {
-            "severity": "HIGH", "category": "xss",
+            "severity": "HIGH",
+            "category": "xss",
             "pattern": r"innerHTML\s*=",
             "title": "XSS 风险（innerHTML）",
             "description": "直接设置 innerHTML 可能导致跨站脚本攻击",
@@ -293,7 +318,8 @@ class SecurityScanner:
             "cwe": "CWE-79",
         },
         {
-            "severity": "HIGH", "category": "xss",
+            "severity": "HIGH",
+            "category": "xss",
             "pattern": r"dangerouslySetInnerHTML",
             "title": "XSS 风险（React）",
             "description": "使用 dangerouslySetInnerHTML 渲染未清洗 HTML",
@@ -303,7 +329,8 @@ class SecurityScanner:
         },
         # CSRF
         {
-            "severity": "MEDIUM", "category": "csrf",
+            "severity": "MEDIUM",
+            "category": "csrf",
             "pattern": r"@(?:PostMapping|PutMapping|DeleteMapping|PatchMapping)\s*\(",
             "title": "可能缺少 CSRF 防护",
             "description": "状态变更操作可能缺少 CSRF Token 校验",
@@ -316,7 +343,8 @@ class SecurityScanner:
     # CWE Top 25 补充规则
     CWE_RULES = [
         {
-            "severity": "HIGH", "category": "injection",
+            "severity": "HIGH",
+            "category": "injection",
             "pattern": r"os\.system\s*\(",
             "title": "OS 命令执行",
             "description": "os.system() 直接执行系统命令",
@@ -324,7 +352,8 @@ class SecurityScanner:
             "cwe": "CWE-78",
         },
         {
-            "severity": "HIGH", "category": "exposure",
+            "severity": "HIGH",
+            "category": "exposure",
             "pattern": r"(?:secret|token|password|key)\s*in\s+headers",
             "title": "敏感信息放在请求头",
             "description": "敏感信息可能通过 HTTP 头泄露",
@@ -332,7 +361,8 @@ class SecurityScanner:
             "cwe": "CWE-200",
         },
         {
-            "severity": "MEDIUM", "category": "config",
+            "severity": "MEDIUM",
+            "category": "config",
             "pattern": r"ALLOWED_HOSTS\s*=\s*\[\s*['\"]\*['\"]\]",
             "title": "Host 校验被禁用",
             "description": "ALLOWED_HOSTS=['*'] 可能导致 Host 头攻击",
@@ -340,7 +370,8 @@ class SecurityScanner:
             "cwe": "CWE-601",
         },
         {
-            "severity": "HIGH", "category": "crypto",
+            "severity": "HIGH",
+            "category": "crypto",
             "pattern": r"ECB\s*mode|MODE_ECB",
             "title": "不安全的加密模式",
             "description": "ECB 模式不隐藏数据模式，不安全",
@@ -348,7 +379,7 @@ class SecurityScanner:
             "cwe": "CWE-327",
         },
     ]
-    
+
     @classmethod
     def _compile_rules(cls, rules: list) -> list:
         """为规则列表预编译正则表达式"""
@@ -361,12 +392,9 @@ class SecurityScanner:
 
     def __init__(self, language: str = "python"):
         self.language = language
-        self.issues: List[SecurityIssue] = []
+        self.issues: list[SecurityIssue] = []
         # 预编译所有规则的正则表达式
-        self._compiled_rules = (
-            self._compile_rules(self.OWASP_RULES)
-            + self._compile_rules(self.CWE_RULES)
-        )
+        self._compiled_rules = self._compile_rules(self.OWASP_RULES) + self._compile_rules(self.CWE_RULES)
 
     def scan(self, code: str, file_path: str = "input") -> SecurityReport:
         """执行安全扫描"""
@@ -389,7 +417,7 @@ class SecurityScanner:
             risk_level=risk_level,
         )
 
-    def _apply_rule(self, rule: Dict, lines: List[str]):
+    def _apply_rule(self, rule: dict, lines: list[str]):
         """应用单条规则"""
         for i, line in enumerate(lines, 1):
             stripped = line.strip()
@@ -418,7 +446,7 @@ class SecurityScanner:
     def _severity_rank(self, sev: str) -> int:
         return {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}.get(sev, 0)
 
-    def _compute_risk(self) -> Tuple[int, str]:
+    def _compute_risk(self) -> tuple[int, str]:
         """计算综合风险评分"""
         if not self.issues:
             return 0, "安全"
@@ -448,19 +476,17 @@ class SecurityScanner:
 
 
 def main():
-    import sys
     import argparse
+    import sys
 
     parser = argparse.ArgumentParser(description="安全漏洞扫描器 — OWASP Top 10 + CWE Top 25")
     parser.add_argument("code_file", help="待扫描的源代码文件路径")
-    parser.add_argument("language", nargs="?", default="python",
-                        help="编程语言 (默认: python)")
-    parser.add_argument("--json", action="store_true", dest="output_json",
-                        help="以 JSON 格式输出")
+    parser.add_argument("language", nargs="?", default="python", help="编程语言 (默认: python)")
+    parser.add_argument("--json", action="store_true", dest="output_json", help="以 JSON 格式输出")
     args = parser.parse_args()
 
     try:
-        with open(args.code_file, "r", encoding="utf-8") as f:
+        with open(args.code_file, encoding="utf-8") as f:
             code = f.read()
     except FileNotFoundError:
         print(f"错误: 文件 '{args.code_file}' 不存在")

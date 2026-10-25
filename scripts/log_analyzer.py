@@ -4,12 +4,10 @@ Log Analyzer — 日志分析与异常检测引擎
 功能：异常模式检测、根因分析、告警规则生成、日志格式化建议
 """
 
-import re
 import json
-from collections import Counter, defaultdict
-from dataclasses import dataclass, field, asdict
-from typing import List, Dict, Optional, Tuple
-from datetime import datetime, timezone, timedelta
+import re
+from collections import defaultdict
+from dataclasses import asdict, dataclass
 
 
 @dataclass
@@ -19,7 +17,7 @@ class LogPattern:
     severity: str  # CRITICAL / HIGH / MEDIUM / LOW
     first_seen: str
     last_seen: str
-    sample_lines: List[str]
+    sample_lines: list[str]
 
     def to_dict(self):
         return asdict(self)
@@ -30,10 +28,10 @@ class LogReport:
     log_file: str
     total_lines: int
     time_range: str
-    patterns: List[LogPattern]
-    root_causes: List[Dict]
-    alert_rules: List[str]
-    format_issues: List[str]
+    patterns: list[LogPattern]
+    root_causes: list[dict]
+    alert_rules: list[str]
+    format_issues: list[str]
 
     def to_markdown(self) -> str:
         lines = []
@@ -106,15 +104,13 @@ class LogAnalyzer:
         (r"Fatal\s+error|PANIC|panic:", "CRITICAL", "致命错误"),
         (r"deadlock|Deadlock\s+detected", "CRITICAL", "死锁"),
         (r"data\s+corruption|checksum\s+mismatch|CRC\s+error", "CRITICAL", "数据损坏"),
-
-        # HIGH
-        (r"Error:\s*\w+Error|ERROR\s+\w+|exception|Exception", "HIGH", "运行时异常"),
+        # HIGH（具体分类必须先于通用 ERROR\s+\w+，否则会被吞成“运行时异常”）
         (r"ConnectionRefused|ConnectionTimeout|connect\s+timeout", "HIGH", "连接超时"),
         (r"PermissionDenied|403\s+Forbidden|access\s+denied", "HIGH", "权限拒绝"),
         (r"DatabaseError|SQLException|duplicate\s+key|constraint", "HIGH", "数据库错误"),
         (r"DiskFull|No space left|ENOSPC", "HIGH", "磁盘满"),
         (r"certificate\s+(?:verify|expir|invalid)", "HIGH", "证书问题"),
-
+        (r"Error:\s*\w+Error|ERROR\s+\w+|exception|Exception", "HIGH", "运行时异常"),
         # MEDIUM
         (r"Warning:|WARN\s+\w+|warn\s+\w+", "MEDIUM", "警告"),
         (r"timeout|timed?\s*out", "MEDIUM", "超时"),
@@ -122,7 +118,6 @@ class LogAnalyzer:
         (r"rate\s+limit|429\s+Too\s+Many", "MEDIUM", "限流"),
         (r"deprecated|DeprecationWarning", "MEDIUM", "弃用警告"),
         (r"slow\s+query|SlowQuery|query\s+took", "MEDIUM", "慢查询"),
-
         # LOW
         (r"DEBUG\s+\w+|debug\s+\w+", "LOW", "调试信息"),
         (r"INFO\s+\w+", "LOW", "普通信息"),
@@ -137,13 +132,12 @@ class LogAnalyzer:
     ]
 
     def __init__(self):
-        self.patterns_found: List[LogPattern] = []
+        self.patterns_found: list[LogPattern] = []
         self.total_lines = 0
         self.time_range = ""
-        self.format_issues: List[str] = []
+        self.format_issues: list[str] = []
 
-    def analyze(self, log_content: str, log_file: str = "input",
-                log_format: str = "plain") -> LogReport:
+    def analyze(self, log_content: str, log_file: str = "input", log_format: str = "plain") -> LogReport:
         """执行日志分析，返回 LogReport 对象"""
         self.total_lines = len(log_content.split("\n"))
         self.patterns_found = []
@@ -163,7 +157,7 @@ class LogAnalyzer:
             line_stripped = line.strip()
             if not line_stripped:
                 continue
-            for pattern, severity, label in self.ERROR_PATTERNS:
+            for pattern, _severity, label in self.ERROR_PATTERNS:
                 if re.search(pattern, line_stripped, re.IGNORECASE):
                     key = f"{label}"
                     pattern_data[key]["count"] += 1
@@ -176,7 +170,7 @@ class LogAnalyzer:
 
         # 转换为 LogPattern 对象
         for label, data in sorted(pattern_data.items(), key=lambda x: -x[1]["count"]):
-            sev = next((s for p, s, l in self.ERROR_PATTERNS if l == label), "MEDIUM")
+            sev = next((sev_value for _pattern, sev_value, lbl in self.ERROR_PATTERNS if lbl == label), "MEDIUM")
             self.patterns_found.append(
                 LogPattern(
                     pattern=label,
@@ -204,7 +198,7 @@ class LogAnalyzer:
             format_issues=list(self.format_issues),
         )
 
-    def _extract_time_range(self, lines: List[str]) -> str:
+    def _extract_time_range(self, lines: list[str]) -> str:
         """从日志中提取时间范围"""
         timestamps = []
         for line in lines[:100]:
@@ -231,69 +225,77 @@ class LogAnalyzer:
                 return match.group()
         return "unknown"
 
-    def _check_format(self, lines: List[str], log_format: str):
+    def _check_format(self, lines: list[str], log_format: str):
         """检查日志格式问题"""
         if log_format == "plain":
             # 检查是否缺少时间戳
-            no_timestamp = sum(1 for l in lines[:50] if self._extract_timestamp(l) == "unknown")
+            no_timestamp = sum(1 for line in lines[:50] if self._extract_timestamp(line) == "unknown")
             if no_timestamp > 20:
                 self.format_issues.append("超过 40% 的行缺少时间戳，建议统一添加 ISO 格式时间戳")
             # 检查是否缺少级别标识
-            no_level = sum(1 for l in lines[:50] if not re.search(r"(ERROR|WARN|INFO|DEBUG)", l, re.IGNORECASE))
+            no_level = sum(1 for line in lines[:50] if not re.search(r"(ERROR|WARN|INFO|DEBUG)", line, re.IGNORECASE))
             if no_level > 30:
                 self.format_issues.append("缺少日志级别标识，建议添加 ERROR/WARN/INFO 前缀")
 
-    def _root_cause_analysis(self) -> List[Dict]:
+    def _root_cause_analysis(self) -> list[dict]:
         """根因分析"""
         causes = []
 
         # OOM 根因
         oom = next((p for p in self.patterns_found if "内存溢出" in p.pattern), None)
         if oom:
-            causes.append({
-                "title": "内存溢出 (OOM)",
-                "confidence": "高",
-                "pattern": oom.pattern,
-                "possible_cause": "大量数据处理、内存泄漏、JVM 堆配置不足",
-                "action": "检查堆内存配置、分析堆转储、排查大对象缓存",
-            })
+            causes.append(
+                {
+                    "title": "内存溢出 (OOM)",
+                    "confidence": "高",
+                    "pattern": oom.pattern,
+                    "possible_cause": "大量数据处理、内存泄漏、JVM 堆配置不足",
+                    "action": "检查堆内存配置、分析堆转储、排查大对象缓存",
+                }
+            )
 
         # 连接超时根因
         timeout = next((p for p in self.patterns_found if "连接超时" in p.pattern), None)
         if timeout:
-            causes.append({
-                "title": "网络连接不稳定",
-                "confidence": "中高",
-                "pattern": timeout.pattern,
-                "possible_cause": "下游服务过载、网络抖动、连接池耗尽",
-                "action": "检查下游服务状态、增加重试机制、扩展连接池",
-            })
+            causes.append(
+                {
+                    "title": "网络连接不稳定",
+                    "confidence": "中高",
+                    "pattern": timeout.pattern,
+                    "possible_cause": "下游服务过载、网络抖动、连接池耗尽",
+                    "action": "检查下游服务状态、增加重试机制、扩展连接池",
+                }
+            )
 
         # 权限拒绝根因
         perm = next((p for p in self.patterns_found if "权限拒绝" in p.pattern), None)
         if perm:
-            causes.append({
-                "title": "权限配置问题",
-                "confidence": "高",
-                "pattern": perm.pattern,
-                "possible_cause": "服务账号权限变更、文件权限、API 密钥过期",
-                "action": "验证服务账号权限、检查 IAM 策略轮换",
-            })
+            causes.append(
+                {
+                    "title": "权限配置问题",
+                    "confidence": "高",
+                    "pattern": perm.pattern,
+                    "possible_cause": "服务账号权限变更、文件权限、API 密钥过期",
+                    "action": "验证服务账号权限、检查 IAM 策略轮换",
+                }
+            )
 
         # 异常频率根因
         errors = next((p for p in self.patterns_found if "运行时异常" in p.pattern), None)
         if errors and errors.count > 10:
-            causes.append({
-                "title": "高频运行时异常",
-                "confidence": "中高",
-                "pattern": errors.pattern,
-                "possible_cause": "边界条件未处理、外部依赖不稳定、数据格式异常",
-                "action": "添加异常捕获、加强输入验证、增加熔断机制",
-            })
+            causes.append(
+                {
+                    "title": "高频运行时异常",
+                    "confidence": "中高",
+                    "pattern": errors.pattern,
+                    "possible_cause": "边界条件未处理、外部依赖不稳定、数据格式异常",
+                    "action": "添加异常捕获、加强输入验证、增加熔断机制",
+                }
+            )
 
         return causes
 
-    def _generate_alert_rules(self) -> List[str]:
+    def _generate_alert_rules(self) -> list[str]:
         """生成告警规则"""
         rules = []
         for p in self.patterns_found[:5]:  # 最多5条规则
@@ -303,20 +305,17 @@ class LogAnalyzer:
 
 
 def main():
-    import sys
     import argparse
+    import sys
 
     parser = argparse.ArgumentParser(description="日志分析与异常检测引擎")
     parser.add_argument("log_file", help="日志文件路径")
-    parser.add_argument("--format", default="plain",
-                        choices=["plain", "json", "syslog"],
-                        help="日志格式 (默认: plain)")
-    parser.add_argument("--json", action="store_true", dest="output_json",
-                        help="以 JSON 格式输出")
+    parser.add_argument("--format", default="plain", choices=["plain", "json", "syslog"], help="日志格式 (默认: plain)")
+    parser.add_argument("--json", action="store_true", dest="output_json", help="以 JSON 格式输出")
     args = parser.parse_args()
 
     try:
-        with open(args.log_file, "r", encoding="utf-8") as f:
+        with open(args.log_file, encoding="utf-8") as f:
             content = f.read()
     except FileNotFoundError:
         print(f"错误: 文件 '{args.log_file}' 不存在")

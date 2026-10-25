@@ -4,11 +4,10 @@ Code Generator & Completer — 代码生成与补全引擎
 功能：自然语言→代码生成、函数补全、注释自动生成、接口文档生成
 """
 
-import re
 import json
-from dataclasses import dataclass, field, asdict
-from typing import List, Dict, Optional, Tuple
-from datetime import datetime, timezone, timedelta
+import re
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 
 
 @dataclass
@@ -17,7 +16,7 @@ class GeneratedCode:
     language: str
     code: str
     explanation: str
-    dependencies: List[str]
+    dependencies: list[str]
 
     def to_dict(self):
         return asdict(self)
@@ -57,8 +56,7 @@ class CodeGenerator:
         "go": ["Gin", "Echo", "Go test"],
     }
 
-    def generate_from_description(self, description: str, language: str,
-                                  framework: str = "") -> GeneratedCode:
+    def generate_from_description(self, description: str, language: str, framework: str = "") -> GeneratedCode:
         """根据自然语言描述生成代码"""
 
         code = ""
@@ -85,7 +83,7 @@ class CodeGenerator:
             dependencies=deps,
         )
 
-    def _gen_python(self, desc: str, framework: str) -> Tuple[str, List[str], str]:
+    def _gen_python(self, desc: str, framework: str) -> tuple[str, list[str], str]:
         """Python 代码生成"""
         desc_lower = desc.lower()
         deps = []
@@ -149,7 +147,7 @@ async def health_check():
 
             elif framework == "Flask" or "flask" in desc_lower:
                 deps = ["flask"]
-                code = f'''from flask import Flask, request, jsonify
+                code = '''from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -161,16 +159,16 @@ def create_resource():
     """创建资源"""
     data = request.get_json()
     if not data or "name" not in data:
-        return jsonify({{"error": "name 不能为空"}}), 400
+        return jsonify({"error": "name 不能为空"}), 400
 
     # TODO: 实现业务逻辑
-    return jsonify({{"id": 1, "name": data["name"], "status": "created"}}), 201
+    return jsonify({"id": 1, "name": data["name"], "status": "created"}), 201
 
 
 @app.route("/api/resource/<int:resource_id>", methods=["GET"])
 def get_resource(resource_id):
     """获取资源详情"""
-    return jsonify({{"id": resource_id, "name": "example"}})
+    return jsonify({"id": resource_id, "name": "example"})
 
 
 if __name__ == "__main__":
@@ -180,7 +178,7 @@ if __name__ == "__main__":
 
             else:
                 deps = ["flask"]
-                code = f'''from flask import Flask, request, jsonify
+                code = '''from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
@@ -190,10 +188,10 @@ def create_resource():
     """创建资源"""
     data = request.get_json()
     if not data:
-        return jsonify({{"error": "请求体不能为空"}}), 400
+        return jsonify({"error": "请求体不能为空"}), 400
 
     # TODO: 实现业务逻辑
-    return jsonify({{"id": 1, "status": "created"}}), 201
+    return jsonify({"id": 1, "status": "created"}), 201
 
 
 if __name__ == "__main__":
@@ -203,7 +201,7 @@ if __name__ == "__main__":
 
         elif "crud" in desc_lower or "增删改查" in desc:
             deps = ["sqlalchemy"]
-            code = f'''from sqlalchemy import create_engine, Column, Integer, String
+            code = '''from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 Base = declarative_base()
@@ -267,13 +265,13 @@ if __name__ == "__main__":
     crud = ItemCRUD()
     # 测试
     item = crud.create("测试项目", "这是一个测试")
-    print(f"创建成功: {{item.id}} - {{item.name}}")
+    print(f"创建成功: {item.id} - {item.name}")
 '''
             explanation = "生成基于 SQLAlchemy 的完整 CRUD 操作类"
 
         elif "test" in desc_lower or "测试" in desc:
             deps = ["pytest"]
-            code = f'''import pytest
+            code = '''import pytest
 
 
 class TestExample:
@@ -281,7 +279,7 @@ class TestExample:
 
     def setup_method(self):
         """每个测试方法执行前运行"""
-        self.data = {{"key": "value"}}
+        self.data = {"key": "value"}
 
     def teardown_method(self):
         """每个测试方法执行后运行"""
@@ -348,15 +346,14 @@ if __name__ == "__main__":
 
         return code, deps, explanation
 
-    def _gen_js(self, desc: str, framework: str, lang: str) -> Tuple[str, List[str], str]:
+    def _gen_js(self, desc: str, framework: str, lang: str) -> tuple[str, list[str], str]:
         """JavaScript/TypeScript 代码生成"""
-        suffix = "ts" if lang == "typescript" else "js"
         deps = []
 
         if "api" in desc.lower() or "接口" in desc:
             if framework == "Express" or "express" in desc.lower():
                 deps = ["express", "cors"]
-                code = f'''const express = require("express");
+                code = """const express = require("express");
 const cors = require("cors");
 
 const app = express();
@@ -366,131 +363,131 @@ app.use(express.json());
 /**
  * 创建资源
  * @route POST /api/resource
- * @param {{Object}} req.body - 请求体
- * @returns {{Object}} 创建的资源信息
+ * @param {Object} req.body - 请求体
+ * @returns {Object} 创建的资源信息
  */
-app.post("/api/resource", (req, res) => {{
-    const {{ name, description }} = req.body;
+app.post("/api/resource", (req, res) => {
+    const { name, description } = req.body;
 
-    if (!name) {{
-        return res.status(400).json({{ error: "name 不能为空" }});
-    }}
+    if (!name) {
+        return res.status(400).json({ error: "name 不能为空" });
+    }
 
     // TODO: 实现业务逻辑
-    res.status(201).json({{ id: 1, name, status: "created" }});
-}});
+    res.status(201).json({ id: 1, name, status: "created" });
+});
 
 /**
  * 获取资源详情
  * @route GET /api/resource/:id
- * @returns {{Object}} 资源信息
+ * @returns {Object} 资源信息
  */
-app.get("/api/resource/:id", (req, res) => {{
-    const {{ id }} = req.params;
+app.get("/api/resource/:id", (req, res) => {
+    const { id } = req.params;
     // TODO: 从数据库查询
-    res.json({{ id: parseInt(id), name: "example" }});
-}});
+    res.json({ id: parseInt(id), name: "example" });
+});
 
 const PORT = process.env.PORT || 8000;
-app.listen(PORT, () => {{
-    console.log(`Server running on port ${{PORT}}`);
-}});
-'''
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
+"""
                 explanation = "生成 Express.js API 骨架，包含路由和错误处理"
 
         elif "react" in desc.lower() or "组件" in desc:
             if lang == "typescript":
                 deps = ["react", "@types/react"]
-                code = f'''import React, {{ useState, useEffect }} from "react";
+                code = """import React, { useState, useEffect } from "react";
 
-interface Props {{
+interface Props {
     title: string;
     onAction?: (data: string) => void;
-}}
+}
 
-const Component: React.FC<Props> = ({{ title, onAction }}) => {{
+const Component: React.FC<Props> = ({ title, onAction }) => {
     const [data, setData] = useState<string>("");
     const [loading, setLoading] = useState<boolean>(false);
 
-    useEffect(() => {{
+    useEffect(() => {
         // TODO: 组件挂载时执行
         console.log("Component mounted");
-    }}, []);
+    }, []);
 
-    const handleAction = async () => {{
+    const handleAction = async () => {
         setLoading(true);
-        try {{
+        try {
             // TODO: 实现异步操作
             onAction?.(data);
-        }} catch (error) {{
+        } catch (error) {
             console.error("操作失败:", error);
-        }} finally {{
+        } finally {
             setLoading(false);
-        }}
-    }};
+        }
+    };
 
     return (
         <div className="component">
-            <h2>{{title}}</h2>
+            <h2>{title}</h2>
             <input
-                value={{data}}
-                onChange={{e => setData(e.target.value)}}
+                value={data}
+                onChange={e => setData(e.target.value)}
                 placeholder="请输入"
             />
-            <button onClick={{handleAction}} disabled={{loading}}>
-                {{loading ? "处理中..." : "提交"}}
+            <button onClick={handleAction} disabled={loading}>
+                {loading ? "处理中..." : "提交"}
             </button>
         </div>
     );
-}};
+};
 
 export default Component;
-'''
+"""
             else:
                 deps = ["react"]
-                code = f'''import React, {{ useState, useEffect }} from "react";
+                code = """import React, { useState, useEffect } from "react";
 
-function Component({{ title, onAction }}) {{
+function Component({ title, onAction }) {
     const [data, setData] = useState("");
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {{
+    useEffect(() => {
         console.log("Component mounted");
-    }}, []);
+    }, []);
 
-    const handleAction = async () => {{
+    const handleAction = async () => {
         setLoading(true);
-        try {{
+        try {
             onAction?.(data);
-        }} catch (error) {{
+        } catch (error) {
             console.error("操作失败:", error);
-        }} finally {{
+        } finally {
             setLoading(false);
-        }}
-    }};
+        }
+    };
 
     return (
         <div className="component">
-            <h2>{{title}}</h2>
+            <h2>{title}</h2>
             <input
-                value={{data}}
-                onChange={{e => setData(e.target.value)}}
+                value={data}
+                onChange={e => setData(e.target.value)}
                 placeholder="请输入"
             />
-            <button onClick={{handleAction}} disabled={{loading}}>
-                {{loading ? "处理中..." : "提交"}}
+            <button onClick={handleAction} disabled={loading}>
+                {loading ? "处理中..." : "提交"}
             </button>
         </div>
     );
-}}
+}
 
 export default Component;
-'''
+"""
             explanation = "生成 React 函数组件，包含状态管理、副作用处理和 TypeScript 类型"
 
         else:
             deps = []
-            code = f'''/**
+            code = f"""/**
  * {desc}
  * @description 自动生成的 {lang} 代码
  */
@@ -512,16 +509,16 @@ class Service {{
 }}
 
 module.exports = Service;
-'''
+"""
             explanation = f"生成基础 {lang} 服务类"
 
         return code, deps, explanation
 
-    def _gen_java(self, desc: str, framework: str) -> Tuple[str, List[str], str]:
+    def _gen_java(self, desc: str, framework: str) -> tuple[str, list[str], str]:
         """Java 代码生成"""
         if framework == "Spring Boot" or "spring" in desc.lower():
             deps = ["spring-boot-starter-web", "spring-boot-starter-validation"]
-            code = f'''package com.example.demo.controller;
+            code = """package com.example.demo.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -530,7 +527,7 @@ import jakarta.validation.constraints.NotBlank;
 
 @RestController
 @RequestMapping("/api/resource")
-public class ResourceController {{
+public class ResourceController {
 
     /**
      * 创建资源
@@ -539,61 +536,61 @@ public class ResourceController {{
      */
     @PostMapping
     public ResponseEntity<ResourceResponse> create(
-            @Valid @RequestBody ResourceRequest request) {{
+            @Valid @RequestBody ResourceRequest request) {
         // TODO: 实现业务逻辑
         ResourceResponse response = new ResourceResponse();
         response.setId(1L);
         response.setName(request.getName());
         response.setStatus("created");
         return ResponseEntity.ok(response);
-    }}
+    }
 
     /**
      * 获取资源详情
      * @param id 资源 ID
      * @return 资源信息
      */
-    @GetMapping("/{{id}}")
-    public ResponseEntity<ResourceResponse> get(@PathVariable Long id) {{
+    @GetMapping("/{id}")
+    public ResponseEntity<ResourceResponse> get(@PathVariable Long id) {
         // TODO: 从数据库查询
         return ResponseEntity.ok(new ResourceResponse(id, "example", "active"));
-    }}
+    }
 
     /**
      * 删除资源
      * @param id 资源 ID
      * @return 204 No Content
      */
-    @DeleteMapping("/{{id}}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {{
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
         // TODO: 实现删除逻辑
         return ResponseEntity.noContent().build();
-    }}
-}}
+    }
+}
 
 // 请求 DTO
-class ResourceRequest {{
+class ResourceRequest {
     @NotBlank(message = "name 不能为空")
     private String name;
 
     private String description;
 
     // getters and setters
-}}
+}
 
 // 响应 DTO
-class ResourceResponse {{
+class ResourceResponse {
     private Long id;
     private String name;
     private String status;
 
     // constructors, getters and setters
-}}
-'''
+}
+"""
             explanation = "生成 Spring Boot REST Controller，包含 CRUD 端点和 DTO"
         else:
             deps = []
-            code = f'''/**
+            code = f"""/**
  * {desc}
  */
 public class Service {{
@@ -607,86 +604,86 @@ public class Service {{
         return Result.success(data);
     }}
 }}
-'''
+"""
             explanation = "生成基础 Java 服务类"
 
         return code, deps, explanation
 
-    def _gen_go(self, desc: str, framework: str) -> Tuple[str, List[str], str]:
+    def _gen_go(self, desc: str, framework: str) -> tuple[str, list[str], str]:
         """Go 代码生成"""
         if framework == "Gin" or "gin" in desc.lower():
             deps = ["github.com/gin-gonic/gin"]
-            code = f'''package main
+            code = """package main
 
 import (
     "net/http"
     "github.com/gin-gonic/gin"
 )
 
-type ResourceRequest struct {{
+type ResourceRequest struct {
     Name        string `json:"name" binding:"required"`
     Description string `json:"description"`
-}}
+}
 
-type ResourceResponse struct {{
+type ResourceResponse struct {
     ID      int64  `json:"id"`
     Name    string `json:"name"`
     Status  string `json:"status"`
-}}
+}
 
-func CreateResource(c *gin.Context) {{
+func CreateResource(c *gin.Context) {
     var req ResourceRequest
-    if err := c.ShouldBindJSON(&req); err != nil {{
-        c.JSON(http.StatusBadRequest, gin.H{{"error": err.Error()}})
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
         return
-    }}
+    }
 
     // TODO: 实现业务逻辑
-    resp := ResourceResponse{{ID: 1, Name: req.Name, Status: "created"}}
+    resp := ResourceResponse{ID: 1, Name: req.Name, Status: "created"}
     c.JSON(http.StatusCreated, resp)
-}}
+}
 
-func GetResource(c *gin.Context) {{
+func GetResource(c *gin.Context) {
     id := c.Param("id")
     // TODO: 从数据库查询
-    resp := ResourceResponse{{ID: 1, Name: "example", Status: "active"}}
+    resp := ResourceResponse{ID: 1, Name: "example", Status: "active"}
     c.JSON(http.StatusOK, resp)
-}}
+}
 
-func main() {{
+func main() {
     r := gin.Default()
     r.POST("/api/resource", CreateResource)
     r.GET("/api/resource/:id", GetResource)
     r.Run(":8000")
-}}
-'''
+}
+"""
             explanation = "生成 Gin 框架 API 骨架，包含路由绑定和请求验证"
         else:
             deps = []
-            code = f'''package main
+            code = """package main
 
 import "fmt"
 
 // Service 服务结构体
-type Service struct {{
+type Service struct {
     config map[string]string
-}}
+}
 
 // Process 处理数据
-func (s *Service) Process(data map[string]interface{{}}) map[string]interface{{}} {{
+func (s *Service) Process(data map[string]interface{}) map[string]interface{} {
     // TODO: 实现业务逻辑
-    return map[string]interface{{}}{{
+    return map[string]interface{}{
         "status": "success",
         "data": data,
-    }}
-}}
+    }
+}
 
-func main() {{
-    svc := &Service{{}}
-    result := svc.Process(map[string]interface{{}}{{"test": "data"}})
+func main() {
+    svc := &Service{}
+    result := svc.Process(map[string]interface{}{"test": "data"})
     fmt.Println(result)
-}}
-'''
+}
+"""
             explanation = "生成基础 Go 服务类"
 
         return code, deps, explanation
@@ -704,15 +701,15 @@ func main() {{
     pass
 '''
         elif language in ("javascript", "typescript"):
-            completion = '''
+            completion = """
     // TODO: 实现函数逻辑
     return null;
-};'''
+};"""
         elif language == "java":
-            completion = '''
+            completion = """
     // TODO: 实现方法逻辑
     return null;
-}'''
+}"""
         else:
             completion = "\n// TODO: 实现"
 
@@ -739,17 +736,20 @@ func main() {{
                     match = re.match(r"def\s+(\w+)\s*\(([^)]*)\)", stripped)
                     if match:
                         fn_name = match.group(1)
-                        params = [p.strip().split("=")[0].split(":")[0].strip()
-                                  for p in match.group(2).split(",") if p.strip()]
+                        params = [
+                            p.strip().split("=")[0].split(":")[0].strip()
+                            for p in match.group(2).split(",")
+                            if p.strip()
+                        ]
                         commented.append(line)
                         commented.append(f'    """TODO: {fn_name} 函数描述')
                         if params:
-                            commented.append(f"    Args:")
+                            commented.append("    Args:")
                             for p in params:
                                 if p and p != "self":
                                     commented.append(f"        {p}: TODO 参数描述")
-                        commented.append('    Returns:')
-                        commented.append('        TODO 返回值描述')
+                        commented.append("    Returns:")
+                        commented.append("        TODO 返回值描述")
                         commented.append('    """')
                         continue
                 elif stripped.startswith("class ") and '"""' not in line:
@@ -777,8 +777,7 @@ func main() {{
 class APIDocGenerator:
     """API 接口文档生成器"""
 
-    def generate(self, source_code: str, language: str,
-                 format: str = "markdown") -> DocResult:
+    def generate(self, source_code: str, language: str, doc_format: str = "markdown") -> DocResult:
         """从源代码提取 API 端点并生成文档"""
 
         endpoints = []
@@ -794,9 +793,9 @@ class APIDocGenerator:
         elif language == "go":
             endpoints = self._extract_gin_endpoints(source_code)
 
-        if format == "openapi":
+        if doc_format == "openapi":
             documentation = self._to_openapi(endpoints, language)
-        elif format == "markdown":
+        elif doc_format == "markdown":
             documentation = self._to_markdown(endpoints, language)
         else:
             documentation = self._to_markdown(endpoints, language)
@@ -804,16 +803,16 @@ class APIDocGenerator:
         return DocResult(
             source_code=source_code,
             language=language,
-            doc_format=format,
+            doc_format=doc_format,
             documentation=documentation,
         )
 
-    def _extract_fastapi_endpoints(self, code: str) -> List[Dict]:
+    def _extract_fastapi_endpoints(self, code: str) -> list[dict]:
         """提取 FastAPI 端点"""
         endpoints = []
         patterns = [
             (r'@(?:app|router)\.(get|post|put|delete|patch)\s*\(\s*["\']([^"\']+)["\']\s*\)', "path"),
-            (r'async\s+def\s+(\w+)\s*\(', "handler"),
+            (r"async\s+def\s+(\w+)\s*\(", "handler"),
         ]
 
         path_lines = {}
@@ -829,27 +828,30 @@ class APIDocGenerator:
 
         for idx, ep in path_lines.items():
             # 提取 docstring
-            doc_lines = code.split("\n")[idx + 1:idx + 6]
+            doc_lines = code.split("\n")[idx + 1 : idx + 6]
             docstring = ""
             for dl in doc_lines:
                 stripped = dl.strip()
                 if stripped.startswith('"""') or stripped.startswith("'''"):
-                    docstring = stripped.strip('"""').strip("'''")
+                    quote = '"""' if stripped.startswith('"""') else "'''"
+                    docstring = stripped.removeprefix(quote).removesuffix(quote)
                     break
                 elif stripped.startswith('"') or stripped.startswith("'"):
                     docstring = stripped.strip('"').strip("'")
                     break
 
-            endpoints.append({
-                "method": ep["method"],
-                "path": ep["path"],
-                "handler": ep["handler"],
-                "description": docstring or "暂无描述",
-            })
+            endpoints.append(
+                {
+                    "method": ep["method"],
+                    "path": ep["path"],
+                    "handler": ep["handler"],
+                    "description": docstring or "暂无描述",
+                }
+            )
 
         return endpoints
 
-    def _extract_flask_endpoints(self, code: str) -> List[Dict]:
+    def _extract_flask_endpoints(self, code: str) -> list[dict]:
         """提取 Flask 端点"""
         endpoints = []
         pattern = r'@app\.route\(["\']([^"\']+)["\'],\s*methods\s*=\s*\[([^\]]+)\]\)'
@@ -860,19 +862,21 @@ class APIDocGenerator:
             methods = [m.strip().strip('"').strip("'") for m in methods_str.split(",")]
 
             # 查找下一行的函数名
-            rest = code[match.end():match.end() + 200]
+            rest = code[match.end() : match.end() + 200]
             fn_match = re.search(r"def\s+(\w+)", rest)
 
-            endpoints.append({
-                "method": methods[0] if methods else "GET",
-                "path": path,
-                "handler": fn_match.group(1) if fn_match else "unknown",
-                "description": "暂无描述",
-            })
+            endpoints.append(
+                {
+                    "method": methods[0] if methods else "GET",
+                    "path": path,
+                    "handler": fn_match.group(1) if fn_match else "unknown",
+                    "description": "暂无描述",
+                }
+            )
 
         return endpoints
 
-    def _extract_express_endpoints(self, code: str) -> List[Dict]:
+    def _extract_express_endpoints(self, code: str) -> list[dict]:
         """提取 Express.js 端点"""
         endpoints = []
         pattern = r'app\.(get|post|put|delete|patch)\s*\(\s*["\']([^"\']+)["\']'
@@ -883,24 +887,29 @@ class APIDocGenerator:
 
             # 提取注释中的描述
             start = max(0, match.start() - 200)
-            context = code[start:match.start()]
-            comment_match = re.search(r'/\*\*([^*]+)\*/', context)
+            context = code[start : match.start()]
+            comment_match = re.search(r"/\*\*([^*]+)\*/", context)
             desc = comment_match.group(1).strip() if comment_match else "暂无描述"
 
-            endpoints.append({
-                "method": method,
-                "path": path,
-                "handler": "",
-                "description": desc,
-            })
+            endpoints.append(
+                {
+                    "method": method,
+                    "path": path,
+                    "handler": "",
+                    "description": desc,
+                }
+            )
 
         return endpoints
 
-    def _extract_spring_endpoints(self, code: str) -> List[Dict]:
+    def _extract_spring_endpoints(self, code: str) -> list[dict]:
         """提取 Spring Boot 端点"""
         endpoints = []
         patterns = [
-            (r'@(GetMapping|PostMapping|PutMapping|DeleteMapping|PatchMapping)\s*\(\s*["\']([^"\']+)["\']\s*\)', "annotation"),
+            (
+                r'@(GetMapping|PostMapping|PutMapping|DeleteMapping|PatchMapping)\s*\(\s*["\']([^"\']+)["\']\s*\)',
+                "annotation",
+            ),
             (r'@RequestMapping\s*\(\s*["\']([^"\']+)["\']\s*\)', "base"),
         ]
 
@@ -919,7 +928,9 @@ class APIDocGenerator:
                         full_path = base_path + path
 
                         # 查找方法签名
-                        sig_match = re.search(r'(?:public|private)\s+\w+\s+(\w+)\s*\(', lines[i + 1] if i + 1 < len(lines) else "")
+                        sig_match = re.search(
+                            r"(?:public|private)\s+\w+\s+(\w+)\s*\(", lines[i + 1] if i + 1 < len(lines) else ""
+                        )
                         handler = sig_match.group(1) if sig_match else "unknown"
 
                         # 提取注释
@@ -932,20 +943,24 @@ class APIDocGenerator:
                                 break
 
                         method_map = {
-                            "GetMapping": "GET", "PostMapping": "POST",
-                            "PutMapping": "PUT", "DeleteMapping": "DELETE",
+                            "GetMapping": "GET",
+                            "PostMapping": "POST",
+                            "PutMapping": "PUT",
+                            "DeleteMapping": "DELETE",
                             "PatchMapping": "PATCH",
                         }
-                        endpoints.append({
-                            "method": method_map.get(annotation, "GET"),
-                            "path": full_path,
-                            "handler": handler,
-                            "description": doc or "暂无描述",
-                        })
+                        endpoints.append(
+                            {
+                                "method": method_map.get(annotation, "GET"),
+                                "path": full_path,
+                                "handler": handler,
+                                "description": doc or "暂无描述",
+                            }
+                        )
 
         return endpoints
 
-    def _extract_gin_endpoints(self, code: str) -> List[Dict]:
+    def _extract_gin_endpoints(self, code: str) -> list[dict]:
         """提取 Gin 端点"""
         endpoints = []
         pattern = r'r\.(GET|POST|PUT|DELETE|PATCH)\s*\(\s*["\']([^"\']+)["\']'
@@ -953,24 +968,28 @@ class APIDocGenerator:
         for match in re.finditer(pattern, code):
             method = match.group(1).upper()
             path = match.group(2)
-            endpoints.append({
-                "method": method,
-                "path": path,
-                "handler": "",
-                "description": "暂无描述",
-            })
+            endpoints.append(
+                {
+                    "method": method,
+                    "path": path,
+                    "handler": "",
+                    "description": "暂无描述",
+                }
+            )
 
         return endpoints
 
-    def _to_markdown(self, endpoints: List[Dict], language: str) -> str:
+    def _to_markdown(self, endpoints: list[dict], language: str) -> str:
         """生成 Markdown 格式 API 文档"""
         if not endpoints:
             return "# API 文档\n\n未检测到 API 端点。\n"
 
         lines = []
-        lines.append(f"# API 文档\n")
-        lines.append(f"> 自动生成于 {datetime.now(timezone(timedelta(hours=8))).strftime('%Y-%m-%d %H:%M')} | "
-                     f"语言: {language} | 端点数量: {len(endpoints)}\n")
+        lines.append("# API 文档\n")
+        lines.append(
+            f"> 自动生成于 {datetime.now(timezone(timedelta(hours=8))).strftime('%Y-%m-%d %H:%M')} | "
+            f"语言: {language} | 端点数量: {len(endpoints)}\n"
+        )
 
         # 按方法分组
         methods_order = ["GET", "POST", "PUT", "DELETE", "PATCH"]
@@ -984,8 +1003,8 @@ class APIDocGenerator:
             lines.append(f"## {method}\n")
             for ep in grouped[method]:
                 lines.append(f"### {ep['path']}\n")
-                lines.append(f"| 属性 | 值 |")
-                lines.append(f"|------|-----|")
+                lines.append("| 属性 | 值 |")
+                lines.append("|------|-----|")
                 lines.append(f"| 方法 | {ep['method']} |")
                 lines.append(f"| 路径 | `{ep['path']}` |")
                 if ep["handler"]:
@@ -1004,7 +1023,7 @@ class APIDocGenerator:
 
         return "\n".join(lines)
 
-    def _to_openapi(self, endpoints: List[Dict], language: str) -> str:
+    def _to_openapi(self, endpoints: list[dict], language: str) -> str:
         """生成 OpenAPI 3.0 格式文档"""
         if not endpoints:
             return '{"openapi": "3.0.0", "info": {"title": "API", "version": "1.0.0"}, "paths": {}}'
@@ -1018,11 +1037,7 @@ class APIDocGenerator:
                     "responses": {
                         "200": {
                             "description": "成功",
-                            "content": {
-                                "application/json": {
-                                    "schema": {"type": "object"}
-                                }
-                            },
+                            "content": {"application/json": {"schema": {"type": "object"}}},
                         }
                     },
                 }
@@ -1041,8 +1056,8 @@ class APIDocGenerator:
 
 
 def main():
-    import sys
     import argparse
+    import sys
 
     parser = argparse.ArgumentParser(description="代码生成与补全引擎")
     subparsers = parser.add_subparsers(dest="action", help="子命令")
@@ -1067,9 +1082,9 @@ def main():
     doc_parser = subparsers.add_parser("doc", help="生成 API 文档")
     doc_parser.add_argument("code_file", help="源代码文件路径")
     doc_parser.add_argument("language", help="编程语言")
-    doc_parser.add_argument("--format", default="markdown",
-                            choices=["markdown", "openapi"],
-                            help="文档格式 (默认: markdown)")
+    doc_parser.add_argument(
+        "--format", default="markdown", choices=["markdown", "openapi"], help="文档格式 (默认: markdown)"
+    )
 
     args = parser.parse_args()
 
@@ -1096,7 +1111,7 @@ def main():
 
     elif args.action == "doc":
         try:
-            with open(args.code_file, "r", encoding="utf-8") as f:
+            with open(args.code_file, encoding="utf-8") as f:
                 source = f.read()
         except FileNotFoundError:
             print(f"错误: 文件 '{args.code_file}' 不存在")

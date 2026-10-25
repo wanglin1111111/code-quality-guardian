@@ -4,13 +4,12 @@ Code Review Engine — 代码审查引擎
 支持多维度扫描、严重性分级、修复建议生成
 """
 
-import re
 import json
-import hashlib
-from dataclasses import dataclass, field, asdict
-from typing import List, Optional, Dict, Tuple
+import re
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timedelta, timezone
 from enum import Enum
-from datetime import datetime, timezone, timedelta
+from typing import Optional
 
 
 class Severity(Enum):
@@ -51,6 +50,7 @@ SEVERITY_SCORE = {
 @dataclass
 class ReviewPattern:
     """统一的审查规则模式定义"""
+
     severity: Severity
     category: Category
     pattern: str  # 正则表达式
@@ -89,11 +89,11 @@ class ReviewReport:
     file: str
     language: str
     timestamp: str
-    issues: List[Issue]
-    dimensions: Dict[str, int]
+    issues: list[Issue]
+    dimensions: dict[str, int]
 
     @property
-    def summary(self) -> Dict[str, int]:
+    def summary(self) -> dict[str, int]:
         counts = {s.value: 0 for s in Severity}
         for issue in self.issues:
             counts[issue.severity] += 1
@@ -109,7 +109,7 @@ class ReviewReport:
 
     def to_markdown(self) -> str:
         lines = []
-        lines.append(f"## 🔍 代码质量审查报告\n")
+        lines.append("## 🔍 代码质量审查报告\n")
         lines.append(f"**文件**: `{self.file}`")
         lines.append(f"**语言**: {self.language}")
         lines.append(f"**审查时间**: {self.timestamp}")
@@ -148,16 +148,7 @@ class ReviewReport:
         lines.append("### 📊 维度评分\n")
         lines.append("| 维度 | 评分 | 说明 |")
         lines.append("|------|------|------|")
-        dim_desc = {
-            "security": "安全检查结果",
-            "correctness": "逻辑正确性",
-            "maintainability": "代码可维护性",
-            "performance": "性能表现",
-            "testing": "测试覆盖",
-            "style": "代码风格",
-        }
         for dim, score in self.dimensions.items():
-            desc = dim_desc.get(dim, "")
             if score >= 8:
                 status = "✅ 良好"
             elif score >= 5:
@@ -189,88 +180,109 @@ class CodeReviewer:
     """代码审查引擎 — 多维度扫描 + 严重性分级 + 修复建议"""
 
     # 安全漏洞模式库
-    SECURITY_PATTERNS: List[ReviewPattern] = [
+    SECURITY_PATTERNS: list[ReviewPattern] = [
         # SQL 注入
         ReviewPattern(
-            Severity.HIGH, Category.SECURITY,
+            Severity.HIGH,
+            Category.SECURITY,
             r"f['\"].*SELECT.*\{",
             "SQL 注入风险：使用 f-string 拼接 SQL",
             "使用参数化查询或 ORM",
-            "A03:2021 – Injection", "CWE-89",
+            "A03:2021 – Injection",
+            "CWE-89",
         ),
         ReviewPattern(
-            Severity.HIGH, Category.SECURITY,
+            Severity.HIGH,
+            Category.SECURITY,
             r"\.execute\([^,)]*\+",
             "SQL 注入风险：字符串拼接构造查询",
             "使用参数化查询",
-            "A03:2021 – Injection", "CWE-89",
+            "A03:2021 – Injection",
+            "CWE-89",
         ),
         ReviewPattern(
-            Severity.HIGH, Category.SECURITY,
+            Severity.HIGH,
+            Category.SECURITY,
             r"eval\(",
             "代码注入风险：使用 eval()",
             "避免使用 eval，使用 ast.literal_eval 或 json.loads",
-            "A03:2021 – Injection", "CWE-95",
+            "A03:2021 – Injection",
+            "CWE-95",
         ),
         ReviewPattern(
-            Severity.HIGH, Category.SECURITY,
+            Severity.HIGH,
+            Category.SECURITY,
             r"exec\(",
             "代码注入风险：使用 exec()",
             "重构为安全的动态导入方案",
-            "A03:2021 – Injection", "CWE-95",
+            "A03:2021 – Injection",
+            "CWE-95",
         ),
         ReviewPattern(
-            Severity.CRITICAL, Category.SECURITY,
+            Severity.CRITICAL,
+            Category.SECURITY,
             r"(password|passwd|pwd|secret|api_key|apikey|token)\s*=\s*['\"][^'\"]+['\"]",
             "硬编码敏感信息：检测到密码/密钥/Token",
             "使用环境变量或密钥管理服务",
-            "A02:2021 – Cryptographic Failures", "CWE-798",
+            "A02:2021 – Cryptographic Failures",
+            "CWE-798",
         ),
         ReviewPattern(
-            Severity.HIGH, Category.SECURITY,
+            Severity.HIGH,
+            Category.SECURITY,
             r"subprocess\.(call|run|Popen)\([^)]*shell\s*=\s*True",
             "命令注入风险：shell=True 启用 Shell 解释",
             "设置 shell=False，使用参数列表",
-            "A03:2021 – Injection", "CWE-78",
+            "A03:2021 – Injection",
+            "CWE-78",
         ),
         ReviewPattern(
-            Severity.HIGH, Category.SECURITY,
+            Severity.HIGH,
+            Category.SECURITY,
             r"requests?\.(get|post|put|delete)\([^)]*verify\s*=\s*False",
             "SSL 验证被禁用",
             "始终启用 verify=True 或配置证书",
-            "A02:2021 – Cryptographic Failures", "CWE-295",
+            "A02:2021 – Cryptographic Failures",
+            "CWE-295",
         ),
         # XSS 相关（JS/TS/前端）
         ReviewPattern(
-            Severity.HIGH, Category.SECURITY,
+            Severity.HIGH,
+            Category.SECURITY,
             r"innerHTML\s*=",
             "XSS 风险：直接设置 innerHTML",
             "使用 textContent 或 DOMPurify 清洗",
-            "A03:2021 – Injection", "CWE-79",
+            "A03:2021 – Injection",
+            "CWE-79",
         ),
         ReviewPattern(
-            Severity.HIGH, Category.SECURITY,
+            Severity.HIGH,
+            Category.SECURITY,
             r"dangerouslySetInnerHTML",
             "XSS 风险：React 危险属性",
             "使用 DOMPurify 清洗后渲染",
-            "A03:2021 – Injection", "CWE-79",
+            "A03:2021 – Injection",
+            "CWE-79",
         ),
     ]
 
     # 性能问题模式
-    PERFORMANCE_PATTERNS: List[ReviewPattern] = [
+    PERFORMANCE_PATTERNS: list[ReviewPattern] = [
         ReviewPattern(
-            Severity.MEDIUM, Category.PERFORMANCE,
+            Severity.MEDIUM,
+            Category.PERFORMANCE,
             r"for .+ in .+:\s*\n\s*\.append\(",
             "循环内重复操作：建议使用列表推导式或 map",
         ),
         ReviewPattern(
-            Severity.MEDIUM, Category.PERFORMANCE,
+            Severity.MEDIUM,
+            Category.PERFORMANCE,
             r"SELECT \* FROM",
             "避免 SELECT *，指定所需字段",
         ),
         ReviewPattern(
-            Severity.MEDIUM, Category.PERFORMANCE,
+            Severity.MEDIUM,
+            Category.PERFORMANCE,
             r"\.get\(.*\)\s*in\s+.*:\s*\n.*\.get\(",
             "N+1 查询模式：循环中重复查询数据库",
             "使用批量查询或 JOIN",
@@ -278,39 +290,45 @@ class CodeReviewer:
     ]
 
     # 代码质量模式
-    QUALITY_PATTERNS: List[ReviewPattern] = [
+    QUALITY_PATTERNS: list[ReviewPattern] = [
         ReviewPattern(
-            Severity.LOW, Category.MAINTAINABILITY,
+            Severity.LOW,
+            Category.MAINTAINABILITY,
             r"def .{50,}\(",
             "函数名过长（>50字符），可读性差",
             "缩短函数名，使用清晰简洁的命名",
         ),
         ReviewPattern(
-            Severity.LOW, Category.STYLE,
+            Severity.LOW,
+            Category.STYLE,
             r"print\(",
             "调试代码：包含 print 语句",
             "使用 logging 模块替代 print",
         ),
         ReviewPattern(
-            Severity.INFO, Category.DOCUMENTATION,
+            Severity.INFO,
+            Category.DOCUMENTATION,
             r"def \w+\([^)]*\):\s*\n(?!\s*[\"']{3})",
             "函数缺少文档字符串",
             "添加 docstring 描述函数功能、参数和返回值",
         ),
         ReviewPattern(
-            Severity.MEDIUM, Category.MAINTAINABILITY,
+            Severity.MEDIUM,
+            Category.MAINTAINABILITY,
             r"if .+:\s*\n(?:.*\n){15,}.*else:",
             "if 分支过长（>15行），建议提取为独立函数",
             "将分支逻辑提取为独立函数",
         ),
         ReviewPattern(
-            Severity.LOW, Category.CORRECTNESS,
+            Severity.LOW,
+            Category.CORRECTNESS,
             r"except:",
             "裸 except 捕获所有异常，隐藏错误",
             "指定具体异常类型",
         ),
         ReviewPattern(
-            Severity.MEDIUM, Category.CORRECTNESS,
+            Severity.MEDIUM,
+            Category.CORRECTNESS,
             r"except\s+\w+:\s*\n\s*pass",
             "空异常处理（pass），可能隐藏错误",
             "至少记录日志或重新抛出",
@@ -319,7 +337,7 @@ class CodeReviewer:
 
     def __init__(self, language: str = "python"):
         self.language = language
-        self.issues: List[Issue] = []
+        self.issues: list[Issue] = []
         self.file_path = ""
 
     def review(self, code: str, file_path: str = "input") -> ReviewReport:
@@ -344,7 +362,7 @@ class CodeReviewer:
             dimensions=dimensions,
         )
 
-    def _scan(self, patterns: List[ReviewPattern], lines: List[str]):
+    def _scan(self, patterns: list[ReviewPattern], lines: list[str]):
         """统一的扫描方法 — 应用规则列表并记录问题"""
         for rule in patterns:
             for i, line in enumerate(lines, 1):
@@ -367,7 +385,7 @@ class CodeReviewer:
                         )
                     )
 
-    def _compute_dimensions(self) -> Dict[str, int]:
+    def _compute_dimensions(self) -> dict[str, int]:
         """计算各维度评分"""
         dims = {
             "security": 10,
@@ -400,19 +418,17 @@ class CodeReviewer:
 
 
 def main():
-    import sys
     import argparse
+    import sys
 
     parser = argparse.ArgumentParser(description="代码审查引擎 — 多维度扫描 + 严重性分级")
     parser.add_argument("code_file", help="待审查的源代码文件路径")
-    parser.add_argument("language", nargs="?", default="python",
-                        help="编程语言 (默认: python)")
-    parser.add_argument("--json", action="store_true", dest="output_json",
-                        help="以 JSON 格式输出")
+    parser.add_argument("language", nargs="?", default="python", help="编程语言 (默认: python)")
+    parser.add_argument("--json", action="store_true", dest="output_json", help="以 JSON 格式输出")
     args = parser.parse_args()
 
     try:
-        with open(args.code_file, "r", encoding="utf-8") as f:
+        with open(args.code_file, encoding="utf-8") as f:
             code = f.read()
     except FileNotFoundError:
         print(f"错误: 文件 '{args.code_file}' 不存在")

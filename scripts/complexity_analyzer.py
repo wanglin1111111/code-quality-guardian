@@ -4,11 +4,10 @@ Complexity Analyzer — 代码复杂度分析工具
 计算圈复杂度(Cyclomatic Complexity)和认知复杂度
 """
 
-import re
 import json
-from dataclasses import dataclass, field, asdict
-from typing import List, Dict, Tuple
-from datetime import datetime, timezone, timedelta
+import re
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 
 
 @dataclass
@@ -30,10 +29,10 @@ class ComplexityReport:
     file: str
     language: str
     timestamp: str
-    results: List[ComplexityResult]
+    results: list[ComplexityResult]
     avg_cyclomatic: float
     avg_cognitive: float
-    hotspot_functions: List[str]
+    hotspot_functions: list[str]
 
     def to_markdown(self) -> str:
         lines = []
@@ -116,7 +115,7 @@ class ComplexityAnalyzer:
 
     def __init__(self, language: str = "python"):
         self.language = language
-        self.results: List[ComplexityResult] = []
+        self.results: list[ComplexityResult] = []
 
     def analyze(self, code: str, file_path: str = "input") -> ComplexityReport:
         """执行复杂度分析"""
@@ -127,9 +126,9 @@ class ComplexityAnalyzer:
         functions = self._extract_functions(lines)
 
         for fn_name, start, end in functions:
-            fn_lines = lines[start - 1:end]
+            fn_lines = lines[start - 1 : end]
             fn_code = "\n".join(fn_lines)
-            loc = len([l for l in fn_lines if l.strip()])
+            loc = len([line for line in fn_lines if line.strip()])
 
             cc = self._cyclomatic_complexity(fn_code)
             cog = self._cognitive_complexity(fn_code)
@@ -165,7 +164,7 @@ class ComplexityAnalyzer:
             hotspot_functions=hotspots,
         )
 
-    def _extract_functions(self, lines: List[str]) -> List[Tuple[str, int, int]]:
+    def _extract_functions(self, lines: list[str]) -> list[tuple[str, int, int]]:
         """提取函数定义及其行范围"""
         functions = []
         stack = []
@@ -179,7 +178,6 @@ class ComplexityAnalyzer:
         }
 
         pattern = fn_patterns.get(self.language, fn_patterns["python"])
-        indent_stack = [(-1, -1)]  # (indent_level, function_index)
 
         for i, line in enumerate(lines, 1):
             stripped = line.strip()
@@ -210,7 +208,7 @@ class ComplexityAnalyzer:
     def _cyclomatic_complexity(self, code: str) -> int:
         """计算圈复杂度（基础值1 + 分支数）"""
         cc = 1
-        for keyword, increment in self.CYCLOMATIC_INCREMENT.items():
+        for keyword in self.CYCLOMATIC_INCREMENT:
             cc += code.count(keyword)
         return cc
 
@@ -251,19 +249,17 @@ class ComplexityAnalyzer:
 
 
 def main():
-    import sys
     import argparse
+    import sys
 
     parser = argparse.ArgumentParser(description="代码复杂度分析工具")
     parser.add_argument("code_file", help="待分析的源代码文件路径")
-    parser.add_argument("language", nargs="?", default="python",
-                        help="编程语言 (默认: python)")
-    parser.add_argument("--json", action="store_true", dest="output_json",
-                        help="以 JSON 格式输出")
+    parser.add_argument("language", nargs="?", default="python", help="编程语言 (默认: python)")
+    parser.add_argument("--json", action="store_true", dest="output_json", help="以 JSON 格式输出")
     args = parser.parse_args()
 
     try:
-        with open(args.code_file, "r", encoding="utf-8") as f:
+        with open(args.code_file, encoding="utf-8") as f:
             code = f.read()
     except FileNotFoundError:
         print(f"错误: 文件 '{args.code_file}' 不存在")
